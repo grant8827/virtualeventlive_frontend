@@ -1,4 +1,4 @@
-const DEFAULT_PRODUCTION_API_ORIGIN = 'https://radioinonestopbackennd-production.up.railway.app'
+const DEFAULT_PRODUCTION_API_ORIGIN = 'https://virtualeventlivebackend-production.up.railway.app'
 
 export const API_ORIGIN = (
   import.meta.env.VITE_API_URL || (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_ORIGIN : '')
