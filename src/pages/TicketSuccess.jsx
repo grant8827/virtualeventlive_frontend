@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { apiUrl } from '../api/url'
 
 export default function TicketSuccess() {
   const [params] = useSearchParams()
@@ -24,7 +25,7 @@ export default function TicketSuccess() {
         return
       }
       try {
-        const res = await fetch(`/api/v1/tickets/lookup?email=${encodeURIComponent(email)}`)
+        const res = await fetch(apiUrl(`/api/v1/tickets/lookup?email=${encodeURIComponent(email)}`))
         const data = await res.json()
         const tickets = data.tickets || []
         if (tickets.length > 0) {

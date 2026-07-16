@@ -1,3 +1,5 @@
+import { apiUrl } from './url'
+
 const BASE = '/api/v1'
 
 function getToken() {
@@ -9,7 +11,7 @@ async function request(method, path, body) {
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(BASE + path, {
+  const res = await fetch(apiUrl(BASE + path), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

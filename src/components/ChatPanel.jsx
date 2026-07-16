@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { apiWebSocketUrl } from '../api/url'
 
 const MAX_MESSAGES = 150
 const NAME_KEY = 'vel-chat-name'
@@ -25,8 +26,7 @@ export default function ChatPanel({ eventId }) {
   useEffect(() => {
     if (!name || !eventId) return
 
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${proto}//${window.location.host}/api/v1/events/${eventId}/chat/ws?name=${encodeURIComponent(name)}`
+    const url = apiWebSocketUrl(`/api/v1/events/${eventId}/chat/ws?name=${encodeURIComponent(name)}`)
     const ws = new WebSocket(url)
     wsRef.current = ws
 

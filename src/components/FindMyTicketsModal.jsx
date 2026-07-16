@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiUrl } from '../api/url'
 
 export default function FindMyTicketsModal({ onClose }) {
   const [email, setEmail] = useState('')
@@ -25,7 +26,7 @@ export default function FindMyTicketsModal({ onClose }) {
     setVisibleCode(null)
     setLoading(true)
     try {
-      const res = await fetch(`/api/v1/tickets/lookup?email=${encodeURIComponent(email.trim())}`)
+      const res = await fetch(apiUrl(`/api/v1/tickets/lookup?email=${encodeURIComponent(email.trim())}`))
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lookup failed')
       setTickets(data.tickets || [])

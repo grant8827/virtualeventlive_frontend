@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getObjectURL, imgKey } from '../lib/imageStore'
+import { apiUrl } from '../api/url'
 
 export default function Tickets() {
   const [events, setEvents] = useState([])
@@ -13,7 +14,7 @@ export default function Tickets() {
   const [activePasskey, setActivePasskey] = useState(null)
 
   useEffect(() => {
-    fetch('/api/v1/events/public')
+    fetch(apiUrl('/api/v1/events/public'))
       .then((r) => r.json())
       .then((d) => setEvents(d.events || []))
       .catch(() => {})
@@ -26,7 +27,7 @@ export default function Tickets() {
     setMyTickets(null)
     setLookupLoading(true)
     try {
-      const res = await fetch(`/api/v1/tickets/lookup?email=${encodeURIComponent(email)}`)
+      const res = await fetch(apiUrl(`/api/v1/tickets/lookup?email=${encodeURIComponent(email)}`))
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lookup failed')
       setMyTickets(data.tickets || [])

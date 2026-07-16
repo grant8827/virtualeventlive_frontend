@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { apiUrl } from '../api/url'
 import AdCard from '../components/AdCard'
 
 export default function Home() {
@@ -294,7 +295,7 @@ function EnterEventModal({ onClose }) {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch(`/api/v1/tickets/enter?code=${encodeURIComponent(trimmed)}`)
+      const res = await fetch(apiUrl(`/api/v1/tickets/enter?code=${encodeURIComponent(trimmed)}`))
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ticket not found')
       onClose()

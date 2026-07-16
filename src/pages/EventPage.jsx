@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { apiUrl } from '../api/url'
 
 export default function EventPage() {
   const { id } = useParams()
@@ -122,7 +123,7 @@ function BuyModal({ eventId, eventTitle, onClose, onPasskey }) {
     setError('')
     setLoading(true)
     try {
-      const res = await fetch('/api/v1/tickets/guest-purchase', {
+      const res = await fetch(apiUrl('/api/v1/tickets/guest-purchase'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_id: eventId, email: email.trim().toLowerCase() }),

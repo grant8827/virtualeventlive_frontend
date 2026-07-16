@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import Hls from 'hls.js'
 import ChatPanel from '../components/ChatPanel'
+import { apiUrl } from '../api/url'
 
 const LIVE_POLL_MS = 5000
 
@@ -28,7 +29,7 @@ export default function Watch() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/v1/tickets/enter?code=${encodeURIComponent(code)}`)
+      const res = await fetch(apiUrl(`/api/v1/tickets/enter?code=${encodeURIComponent(code)}`))
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Ticket not found')
       if (data.event_id !== id) throw new Error('This ticket is not valid for this event.')
@@ -57,7 +58,7 @@ export default function Watch() {
 
     async function poll() {
       try {
-        const res = await fetch(`/api/v1/events/${id}/stream-status`)
+        const res = await fetch(apiUrl(`/api/v1/events/${id}/stream-status`))
         const data = await res.json()
         if (!cancelled) setIsLive(!!data.live)
       } catch {
