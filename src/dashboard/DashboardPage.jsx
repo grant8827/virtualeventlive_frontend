@@ -54,54 +54,6 @@ export default function DashboardPage() {
     fetchEvents()
   }, [])
 
-  // Payouts tab — Stripe connect status, plus PayPal/WiPay payout destinations
-  // (no OAuth for those two), all fetched once when the tab is opened.
-  const [stripeStatus, setStripeStatus] = useState(null) // { connected, stripe_account, payout_enabled }
-  const [payoutAccounts, setPayoutAccounts] = useState({ paypal: {}, wipay: {} })
-  const [payoutAccountsLoaded, setPayoutAccountsLoaded] = useState(false)
-  const [payoutForms, setPayoutForms] = useState({
-    paypal: { email: '' },
-    wipay: { account_name: '', bank_name: '', account_number: '' },
-  })
-  const [payoutEditing, setPayoutEditing] = useState({ paypal: false, wipay: false })
-  const [payoutSaving, setPayoutSaving] = useState({ paypal: false, wipay: false })
-  const [payoutErrors, setPayoutErrors] = useState({ paypal: '', wipay: '' })
-
-  useEffect(() => {
-    if (activeTab !== 'payouts' || payoutAccountsLoaded) return
-    api.get('/connect/status')
-      .then(setStripeStatus)
-      .catch(() => setStripeStatus({ connected: false, payout_enabled: false }))
-    api.get('/payout-accounts')
-      .then((data) => {
-        setPayoutAccounts(data)
-        setPayoutForms((prev) => ({
-          paypal: { ...prev.paypal, ...(data.paypal?.details || {}) },
-          wipay: { ...prev.wipay, ...(data.wipay?.details || {}) },
-        }))
-      })
-      .catch(() => {})
-      .finally(() => setPayoutAccountsLoaded(true))
-  }, [activeTab, payoutAccountsLoaded])
-
-  function updatePayoutForm(provider, key, val) {
-    setPayoutForms((prev) => ({ ...prev, [provider]: { ...prev[provider], [key]: val } }))
-  }
-
-  async function handlePayoutSave(provider) {
-    setPayoutErrors((prev) => ({ ...prev, [provider]: '' }))
-    setPayoutSaving((prev) => ({ ...prev, [provider]: true }))
-    try {
-      const data = await api.post(`/payout-accounts/${provider}`, payoutForms[provider])
-      setPayoutAccounts((prev) => ({ ...prev, [provider]: data }))
-      setPayoutEditing((prev) => ({ ...prev, [provider]: false }))
-    } catch (err) {
-      setPayoutErrors((prev) => ({ ...prev, [provider]: err.message }))
-    } finally {
-      setPayoutSaving((prev) => ({ ...prev, [provider]: false }))
-    }
-  }
-
   async function fetchEvents() {
     setEventsLoading(true)
     try {
@@ -1256,184 +1208,39 @@ export default function DashboardPage() {
 
       {/* ── Payouts ── */}
       {activeTab === 'payouts' && (
-        <div className="max-w-6xl">
-          <h2 className="text-lg font-semibold mb-2">Payouts</h2>
-          <p className="text-gray-400 text-sm mb-6 leading-relaxed max-w-2xl">
-            Connect one or more payment methods to receive ticket revenue. Platform keeps a 10%
-            commission on every ticket sold; you keep 90%.
+        <div className="max-w-md">
+          <h2 className="text-lg font-semibold mb-2">Stripe Payouts</h2>
+          <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+            Connect your Stripe account to receive ticket revenue. Funds transfer automatically
+            after each sale.
           </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-            {/* Stripe */}
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">Stripe</h3>
-                {stripeStatus?.connected && stripeStatus?.payout_enabled ? (
-                  <span className="text-xs text-green-400 font-medium">Connected</span>
-                ) : stripeStatus?.connected ? (
-                  <span className="text-xs text-yellow-400 font-medium">Pending verification</span>
-                ) : (
-                  <span className="text-xs text-gray-500">Instant split payout</span>
-                )}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 mb-4">
+            <div className="space-y-2 text-sm text-gray-300">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Venue fee</span>
+                <span>$20/hr (ceiling)</span>
               </div>
-              <div className="space-y-2 text-sm text-gray-300">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Venue fee</span>
-                  <span>$20/hr (ceiling)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Platform commission</span>
-                  <span>10% per ticket</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Your cut</span>
-                  <span className="text-green-400 font-semibold">90% of ticket revenue</span>
-                </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Platform commission</span>
+                <span>10% per ticket</span>
               </div>
-              <div className="border-t border-gray-800 pt-4">
-                <button
-                  onClick={handleStripeConnect}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-colors"
-                >
-                  {stripeStatus?.connected && stripeStatus?.payout_enabled
-                    ? 'Manage Stripe Account →'
-                    : stripeStatus?.connected
-                    ? 'Finish Onboarding →'
-                    : 'Connect Stripe Account →'}
-                </button>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Your cut</span>
+                <span className="text-green-400 font-semibold">90% of ticket revenue</span>
               </div>
-              <p className="text-xs text-gray-600 text-center">
-                Powered by Stripe Connect. Your banking info is never stored on our servers.
-              </p>
             </div>
-
-            {/* PayPal */}
-            <PayoutProviderCard
-              title="PayPal"
-              note="Payouts sent weekly"
-              description="We collect ticket payments through our PayPal, then send your 90% share to the PayPal email you provide below."
-              account={payoutAccounts.paypal}
-              editing={payoutEditing.paypal}
-              saving={payoutSaving.paypal}
-              error={payoutErrors.paypal}
-              onEdit={() => setPayoutEditing((p) => ({ ...p, paypal: true }))}
-              onCancel={() => setPayoutEditing((p) => ({ ...p, paypal: false }))}
-              onSave={() => handlePayoutSave('paypal')}
-            >
-              <label className="block text-xs text-gray-500 mb-1">PayPal email</label>
-              <input
-                type="email"
-                value={payoutForms.paypal.email}
-                onChange={(e) => updatePayoutForm('paypal', 'email', e.target.value)}
-                placeholder="you@example.com"
-                className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-              />
-            </PayoutProviderCard>
-
-            {/* WiPay */}
-            <PayoutProviderCard
-              title="WiPay"
-              note="Payouts sent weekly"
-              description="We collect ticket payments through our WiPay account, then send your 90% share to the bank account you provide below."
-              account={payoutAccounts.wipay}
-              editing={payoutEditing.wipay}
-              saving={payoutSaving.wipay}
-              error={payoutErrors.wipay}
-              onEdit={() => setPayoutEditing((p) => ({ ...p, wipay: true }))}
-              onCancel={() => setPayoutEditing((p) => ({ ...p, wipay: false }))}
-              onSave={() => handlePayoutSave('wipay')}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Account holder name</label>
-                  <input
-                    type="text"
-                    value={payoutForms.wipay.account_name}
-                    onChange={(e) => updatePayoutForm('wipay', 'account_name', e.target.value)}
-                    placeholder="Full name on account"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Bank name</label>
-                  <input
-                    type="text"
-                    value={payoutForms.wipay.bank_name}
-                    onChange={(e) => updatePayoutForm('wipay', 'bank_name', e.target.value)}
-                    placeholder="e.g. Republic Bank"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Account number</label>
-                  <input
-                    type="text"
-                    value={payoutForms.wipay.account_number}
-                    onChange={(e) => updatePayoutForm('wipay', 'account_number', e.target.value)}
-                    placeholder="Account number"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </PayoutProviderCard>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// A payout destination card for providers with no OAuth connect flow (PayPal,
-// WiPay) — the host just fills in where to send their payout share, and can
-// edit it later. `children` is the form's input field(s).
-function PayoutProviderCard({ title, note, description, account, editing, saving, error, onEdit, onCancel, onSave, children }) {
-  const connected = account?.connected
-
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">{title}</h3>
-        {connected && !editing ? (
-          <span className="text-xs text-green-400 font-medium">Connected</span>
-        ) : (
-          <span className="text-xs text-gray-500">{note}</span>
-        )}
-      </div>
-      <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
-
-      {connected && !editing ? (
-        <div className="border-t border-gray-800 pt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-300 truncate pr-4">
-            {Object.values(account.details || {}).filter(Boolean).join(' · ')}
-          </div>
-          <button
-            onClick={onEdit}
-            className="shrink-0 px-3 py-1.5 text-sm text-gray-300 hover:text-white border border-gray-700 rounded-lg transition-colors"
-          >
-            Edit
-          </button>
-        </div>
-      ) : (
-        <div className="border-t border-gray-800 pt-4 space-y-3">
-          {children}
-          {error && <p className="text-red-400 text-xs">{error}</p>}
-          <div className="flex gap-2">
-            {connected && (
+            <div className="border-t border-gray-800 pt-4">
               <button
-                onClick={onCancel}
-                className="px-4 py-2.5 text-sm text-gray-300 hover:text-white border border-gray-700 rounded-xl transition-colors"
+                onClick={handleStripeConnect}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-colors"
               >
-                Cancel
+                Connect Stripe Account →
               </button>
-            )}
-            <button
-              onClick={onSave}
-              disabled={saving}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded-xl font-semibold transition-colors"
-            >
-              {saving ? 'Saving…' : connected ? 'Save' : `Connect ${title} →`}
-            </button>
+            </div>
           </div>
+          <p className="text-xs text-gray-600 text-center">
+            Powered by Stripe Connect. Your banking info is never stored on our servers.
+          </p>
         </div>
       )}
     </div>

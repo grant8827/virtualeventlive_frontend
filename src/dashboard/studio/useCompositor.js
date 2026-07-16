@@ -13,7 +13,11 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
   const tBarRef = useRef({ active: false, blend: 0, fromVideo: null, fromLabel: '' })
 
   // Ticker state
-  const tickerRef = useRef({ text: '', active: false, x: 1280 })
+  const tickerRef = useRef({ text: '', active: false, x: 1280, color: '#ffffff', font: 'Arial, sans-serif', scroll: true })
+
+  // Station watermark — a fixed logo overlay on Program, independent of any
+  // channel or transition (unlike the ticker, it never travels or crossfades).
+  const logoRef = useRef({ enabled: false, position: 'bottom-right', image: null })
 
   const rafRef = useRef(null)
 
@@ -41,12 +45,48 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
     ctx.globalAlpha = 1
     ctx.fillStyle = 'rgba(0,0,0,0.82)'
     ctx.fillRect(0, y, w, barH)
-    ctx.font = `bold ${Math.round(barH * 0.6)}px Arial, sans-serif`
-    ctx.fillStyle = '#fff'
-    ctx.fillText(t.text, t.x, y + barH * 0.76)
-    const tw = ctx.measureText(t.text).width
-    t.x -= 2
-    if (t.x < -tw) t.x = w
+    ctx.font = `bold ${Math.round(barH * 0.6)}px ${t.font}`
+    ctx.fillStyle = t.color
+
+    if (t.scroll) {
+      ctx.textAlign = 'left'
+      ctx.fillText(t.text, t.x, y + barH * 0.76)
+      const tw = ctx.measureText(t.text).width
+      t.x -= 2
+      if (t.x < -tw) t.x = w
+    } else {
+      ctx.textAlign = 'center'
+      ctx.fillText(t.text, w / 2, y + barH * 0.76)
+    }
+    ctx.textAlign = 'left'
+  }
+
+  const LOGO_ANCHORS = {
+    'top-left': { x: 'left', y: 'top' },
+    'top-right': { x: 'right', y: 'top' },
+    'bottom-left': { x: 'left', y: 'bottom' },
+    'bottom-right': { x: 'right', y: 'bottom' },
+  }
+
+  function drawLogo(ctx, w, h) {
+    const logo = logoRef.current
+    if (!logo.enabled || !logo.image) return
+    const img = logo.image
+    if (!img.complete || !img.naturalWidth) return
+
+    const maxW = w * 0.18
+    const maxH = h * 0.18
+    const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1)
+    const drawW = img.naturalWidth * scale
+    const drawH = img.naturalHeight * scale
+    const pad = w * 0.02
+
+    const anchor = LOGO_ANCHORS[logo.position] || LOGO_ANCHORS['bottom-right']
+    const x = anchor.x === 'left' ? pad : w - drawW - pad
+    const y = anchor.y === 'top' ? pad : h - drawH - pad
+
+    ctx.globalAlpha = 1
+    ctx.drawImage(img, x, y, drawW, drawH)
   }
 
   function tickPvw() {
@@ -113,6 +153,7 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
     }
 
     drawTicker(ctx, w, h)
+    drawLogo(ctx, w, h)
   }
 
   useEffect(() => {
@@ -205,6 +246,10 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
 
   // T-Bar: commit transition (T-Bar reached 100 or released at 100)
   const tBarCommit = useCallback(() => {
+    // A dragged range input can fire onChange more than once at the boundary
+    // value — without this guard, a second commit would find Preview already
+    // cleared by the first and stomp Program with that emptiness too.
+    if (!tBarRef.current.active) return
     const from = tBarRef.current.fromVideo
     const newPgm = pvwVideoRef.current
     if (from && from !== newPgm) from.srcObject = null
@@ -223,16 +268,22 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
     tBarRef.current = { active: false, blend: 0, fromVideo: null, fromLabel: '' }
   }, [])
 
-  // Ticker
-  function setTicker(text, active) {
-    tickerRef.current.text = text
-    tickerRef.current.active = active
-    if (active) tickerRef.current.x = pgmCanvasRef.current?.width ?? 1280
+  // Ticker — merges into the existing entry so settings changed mid-broadcast
+  // (color, font, scroll) take effect immediately without needing a Stop/Start.
+  function setTicker(patch) {
+    const t = tickerRef.current
+    Object.assign(t, patch)
+    if (patch.active) t.x = pgmCanvasRef.current?.width ?? 1280
   }
 
   function getPgmStream() {
     return pgmCanvasRef.current?.captureStream(30) ?? null
   }
+
+  // Station watermark
+  const setLogo = useCallback((patch) => {
+    logoRef.current = { ...logoRef.current, ...patch }
+  }, [])
 
   return {
     pvwLabel,
@@ -246,6 +297,7 @@ export function useCompositor(pvwCanvasRef, pgmCanvasRef) {
     tBarCommit,
     tBarCancel,
     setTicker,
+    setLogo,
     getPgmStream,
   }
 }

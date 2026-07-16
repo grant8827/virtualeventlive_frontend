@@ -3,22 +3,31 @@ import { useRef, useState, useCallback } from 'react'
 export function useWhip() {
   const pcRef = useRef(null)
   const audioCtxRef = useRef(null)
+  const silentTrackRef = useRef(null)
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
 
-  const start = useCallback(async (canvasStream, ingestUrl, streamKey) => {
+  // IVS WHIP requires an audio track even when nothing real is being fed in —
+  // lazily create one silent tone and reuse it for the life of the stream.
+  function getSilentTrack() {
+    if (silentTrackRef.current) return silentTrackRef.current
+    const audioCtx = new AudioContext()
+    audioCtxRef.current = audioCtx
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    gain.gain.value = 0
+    osc.connect(gain)
+    const dest = audioCtx.createMediaStreamDestination()
+    gain.connect(dest)
+    osc.start()
+    silentTrackRef.current = dest.stream.getAudioTracks()[0]
+    return silentTrackRef.current
+  }
+
+  const start = useCallback(async (canvasStream, ingestUrl, streamKey, initialAudioTrack) => {
     setError('')
     try {
-      // Create a silent audio track — IVS WHIP requires both video and audio tracks
-      const audioCtx = new AudioContext()
-      audioCtxRef.current = audioCtx
-      const osc = audioCtx.createOscillator()
-      const gain = audioCtx.createGain()
-      gain.gain.value = 0
-      osc.connect(gain)
-      const dest = audioCtx.createMediaStreamDestination()
-      gain.connect(dest)
-      osc.start()
+      const audioTrack = initialAudioTrack || getSilentTrack()
 
       const pc = new RTCPeerConnection({ iceServers: [] })
       pcRef.current = pc
@@ -26,9 +35,7 @@ export function useWhip() {
       for (const track of canvasStream.getVideoTracks()) {
         pc.addTrack(track, canvasStream)
       }
-      for (const track of dest.stream.getAudioTracks()) {
-        pc.addTrack(track, dest.stream)
-      }
+      pc.addTrack(audioTrack)
 
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
@@ -71,11 +78,21 @@ export function useWhip() {
     } catch (err) {
       pcRef.current?.close()
       pcRef.current = null
-      audioCtxRef.current?.close().catch(() => {})
-      audioCtxRef.current = null
       setError(err.message)
       setStreaming(false)
     }
+  }, [])
+
+  // Hot-swaps the outgoing audio track on an already-live connection — used
+  // when the operator changes what's on Program mid-stream. Passing no track
+  // falls back to silence, so switching away from an audio channel doesn't
+  // leave its mic hot on air.
+  const replaceAudioTrack = useCallback((track) => {
+    const pc = pcRef.current
+    if (!pc) return
+    const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'audio')
+    if (!sender) return
+    sender.replaceTrack(track || getSilentTrack()).catch(() => {})
   }, [])
 
   const stop = useCallback(() => {
@@ -83,9 +100,10 @@ export function useWhip() {
     pcRef.current = null
     audioCtxRef.current?.close().catch(() => {})
     audioCtxRef.current = null
+    silentTrackRef.current = null
     setStreaming(false)
     setError('')
   }, [])
 
-  return { streaming, error, start, stop }
+  return { streaming, error, start, stop, replaceAudioTrack }
 }

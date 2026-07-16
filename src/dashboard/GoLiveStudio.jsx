@@ -3,15 +3,91 @@ import { api } from '../api/client'
 import { useCompositor } from './studio/useCompositor'
 import { useWhip } from './studio/useWhip'
 import Ticker from './studio/Ticker'
+import StudioSettingsModal from './studio/StudioSettingsModal'
+import AddChannelModal from './studio/AddChannelModal'
+import { saveImage, getImage, getObjectURL, deleteImage, studioLogoKey, studioChannelImageKey } from '../lib/imageStore'
+
+const STUDIO_CHANNELS_KEY = 'studio-channels'
+
+const SOURCE_ICONS = { camera: '📷', screen: '🖥', image: '🖼', audio: '🎤' }
+const SOURCE_OFFLINE_LABELS = { camera: 'WEBCAM OFFLINE', screen: 'SCREEN SHARE', image: 'LOADING IMAGE…', audio: 'AUDIO ONLY' }
+
+// ─── Live input-level meter, driven by a real AnalyserNode (no simulated data) ──
+function AudioLevelMeter({ stream }) {
+  const [level, setLevel] = useState(0)
+
+  useEffect(() => {
+    if (!stream || stream.getAudioTracks().length === 0) return
+
+    const audioCtx = new AudioContext()
+    const sourceNode = audioCtx.createMediaStreamSource(stream)
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 256
+    sourceNode.connect(analyser)
+    const data = new Uint8Array(analyser.frequencyBinCount)
+
+    let rafId
+    function poll() {
+      analyser.getByteTimeDomainData(data)
+      let peak = 0
+      for (const v of data) {
+        const dev = Math.abs(v - 128)
+        if (dev > peak) peak = dev
+      }
+      setLevel(Math.min(100, Math.round((peak / 128) * 100)))
+      rafId = requestAnimationFrame(poll)
+    }
+    poll()
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      sourceNode.disconnect()
+      audioCtx.close().catch(() => {})
+    }
+  }, [stream])
+
+  const color = level > 85 ? '#dc2626' : level > 65 ? '#eab308' : '#22c55e'
+
+  return (
+    <div className="w-3/4 h-1.5 rounded-full bg-gray-800 overflow-hidden mt-1">
+      <div className="h-full transition-all" style={{ width: `${level}%`, background: color }} />
+    </div>
+  )
+}
 
 // ─── Per-channel input card with its own mini preview ────────────────────────
-function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPgm }) {
+function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPgm, onSwitchAudioDevice, onRemove }) {
   const canvasRef = useRef(null)
   const videoRef = useRef(null)
   const rafRef = useRef(null)
   const [ready, setReady] = useState(false)
+  const hasVideo = source.stream.getVideoTracks().length > 0
+
+  const [showDeviceMenu, setShowDeviceMenu] = useState(false)
+  const [devices, setDevices] = useState([])
+  const deviceMenuRef = useRef(null)
 
   useEffect(() => {
+    if (!showDeviceMenu) return
+    navigator.mediaDevices.enumerateDevices().then((list) => {
+      setDevices(list.filter((d) => d.kind === 'audioinput'))
+    })
+  }, [showDeviceMenu])
+
+  useEffect(() => {
+    if (!showDeviceMenu) return
+    function handleClickOutside(e) {
+      if (deviceMenuRef.current && !deviceMenuRef.current.contains(e.target)) {
+        setShowDeviceMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showDeviceMenu])
+
+  useEffect(() => {
+    if (!hasVideo) return // audio-only source — nothing to draw, placeholder covers it
+
     const video = document.createElement('video')
     video.srcObject = source.stream
     video.autoplay = true
@@ -38,7 +114,7 @@ function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPg
       cancelAnimationFrame(rafRef.current)
       video.srcObject = null
     }
-  }, [source.stream])
+  }, [source.stream, hasVideo])
 
   const borderCls = isInPgm
     ? 'border-red-600 shadow-red-900/40 shadow-lg'
@@ -67,56 +143,100 @@ function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPg
               PVW
             </span>
           )}
+          <button
+            onClick={() => onRemove(source.id)}
+            title="Remove channel"
+            className="w-4 h-4 rounded-full bg-gray-800 hover:bg-red-600 text-gray-400 hover:text-white flex items-center justify-center text-[9px] leading-none transition-colors shrink-0"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
       {/* Preview canvas */}
       <div className="relative mx-2 rounded-lg overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
-        <canvas ref={canvasRef} width={320} height={180} className="w-full h-full block" />
-        {!ready && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 gap-1">
+        {hasVideo && <canvas ref={canvasRef} width={320} height={180} className="w-full h-full block" />}
+        {(!hasVideo || !ready) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 gap-1 px-2">
             <div className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-base">
-              {source.type === 'camera' ? '📷' : '🖥'}
+              {SOURCE_ICONS[source.type] || '🖥'}
             </div>
             <p className="text-[9px] uppercase tracking-widest font-black">
-              {source.type === 'camera' ? 'WEBCAM OFFLINE' : 'SCREEN SHARE'}
+              {SOURCE_OFFLINE_LABELS[source.type] || 'SCREEN SHARE'}
             </p>
             {source.type === 'camera' && (
               <p className="text-[8px] text-gray-700 text-center leading-tight">
-                Click "Connect Webcam"<br />above to preview
+                Waiting for camera<br />signal…
               </p>
             )}
+            {source.type === 'audio' && <AudioLevelMeter stream={source.stream} />}
           </div>
         )}
       </div>
 
       {/* Card footer */}
       <div className="flex items-center justify-between px-2.5 py-2 mt-auto">
-        <div className="flex gap-1">
-          <button
-            onClick={() => onSendToPvw(source.stream, source.label)}
-            className={`text-[10px] px-2 py-0.5 rounded font-black transition-colors ${
-              isInPvw
-                ? 'bg-teal-500 text-white'
-                : 'bg-gray-800 hover:bg-teal-900 text-gray-500 hover:text-teal-300'
-            }`}
-          >
-            PRV
-          </button>
-          <button
-            onClick={() => onSendToPgm(source.stream, source.label)}
-            className={`text-[10px] px-2 py-0.5 rounded font-black transition-colors ${
-              isInPgm
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-300'
-            }`}
-          >
-            PGM
-          </button>
-        </div>
-        <span className="text-[9px] bg-gray-800 text-gray-500 px-1.5 py-px rounded uppercase tracking-wider font-black">
-          {source.type}
-        </span>
+        {source.type === 'audio' ? (
+          <>
+            <span className="text-[9px] text-purple-400 font-black uppercase tracking-wider">
+              🔊 Main Audio Source
+            </span>
+            <div className="relative" ref={deviceMenuRef}>
+              <button
+                onClick={() => setShowDeviceMenu((v) => !v)}
+                title="Select audio input"
+                className="text-gray-500 hover:text-gray-300 transition-colors px-1 text-sm"
+              >
+                ⚙
+              </button>
+              {showDeviceMenu && (
+                <div className="absolute bottom-full right-0 mb-1 z-20 bg-gray-900 border border-gray-700 rounded-lg p-1 w-40 shadow-xl max-h-40 overflow-y-auto">
+                  {devices.length === 0 ? (
+                    <p className="text-[10px] text-gray-600 px-2 py-1.5">No inputs found</p>
+                  ) : (
+                    devices.map((d, i) => (
+                      <button
+                        key={d.deviceId || i}
+                        onClick={() => { setShowDeviceMenu(false); onSwitchAudioDevice(source.id, d.deviceId) }}
+                        className="w-full text-left text-[10px] text-gray-300 hover:bg-gray-800 hover:text-white px-2 py-1.5 rounded truncate"
+                      >
+                        {d.label || `Microphone ${i + 1}`}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex gap-1">
+              <button
+                onClick={() => onSendToPvw(source.stream, source.label)}
+                className={`text-[10px] px-2 py-0.5 rounded font-black transition-colors ${
+                  isInPvw
+                    ? 'bg-teal-500 text-white'
+                    : 'bg-gray-800 hover:bg-teal-900 text-gray-500 hover:text-teal-300'
+                }`}
+              >
+                PRV
+              </button>
+              <button
+                onClick={() => onSendToPgm(source.stream, source.label)}
+                className={`text-[10px] px-2 py-0.5 rounded font-black transition-colors ${
+                  isInPgm
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-800 hover:bg-red-900 text-gray-500 hover:text-red-300'
+                }`}
+              >
+                PGM
+              </button>
+            </div>
+            <span className="text-[9px] bg-gray-800 text-gray-500 px-1.5 py-px rounded uppercase tracking-wider font-black">
+              {source.type}
+            </span>
+          </>
+        )}
       </div>
     </div>
   )
@@ -133,10 +253,106 @@ export default function GoLiveStudio({ events }) {
   const [credsLoading, setCredsLoading] = useState(false)
 
   const [sources, setSources] = useState([])
+  const restoredChannelsRef = useRef(false)
+
+  // Restore camera/audio/image channels from a previous session on mount.
+  // Screen shares are deliberately skipped — browsers never allow silently
+  // re-triggering screen capture after a reload, a fresh user gesture and
+  // picker interaction is required every single time, no way around it.
+  //
+  // Cancellation matters here, not just as cleanup hygiene: React StrictMode
+  // deliberately mounts every effect twice in development specifically to
+  // catch ones missing this guard. Without it, this async restore ran to
+  // completion twice, each call adding every saved channel — exactly the
+  // "2 of each" duplication this was fixed for.
+  useEffect(() => {
+    let cancelled = false
+
+    async function restore() {
+      const raw = localStorage.getItem(STUDIO_CHANNELS_KEY)
+      if (!raw) return
+      let saved
+      try {
+        saved = JSON.parse(raw)
+      } catch {
+        return
+      }
+
+      for (const entry of saved) {
+        if (cancelled) return
+        try {
+          if (entry.type === 'camera') {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: entry.deviceId ? { deviceId: { exact: entry.deviceId } } : true,
+              audio: false,
+            })
+            if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+            setSources((p) => [...p, { id: entry.id, label: entry.label, stream, type: 'camera', deviceId: entry.deviceId }])
+          } else if (entry.type === 'audio') {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: entry.deviceId ? { deviceId: { exact: entry.deviceId } } : true,
+              video: false,
+            })
+            if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+            setSources((p) => [...p, { id: entry.id, label: entry.label, stream, type: 'audio', deviceId: entry.deviceId }])
+          } else if (entry.type === 'image') {
+            const blob = await getImage(studioChannelImageKey(entry.id))
+            if (!blob) continue
+            const img = await loadImageFile(blob)
+            if (cancelled) return
+            const stream = makeImageChannelStream(img)
+            setSources((p) => [...p, { id: entry.id, label: entry.label, stream, type: 'image' }])
+          }
+        } catch {
+          // device gone, permission revoked, blob missing — just skip that one channel
+        }
+      }
+    }
+    restore().finally(() => {
+      if (!cancelled) restoredChannelsRef.current = true
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Persist the channel list (not the media itself) so it can be rebuilt on
+  // the next load. Skipped until restoration above has settled — otherwise
+  // the initial empty `sources` would immediately overwrite the saved list
+  // before restoration ever gets a chance to read it.
+  useEffect(() => {
+    if (!restoredChannelsRef.current) return
+    const persistable = sources
+      .filter((s) => s.type !== 'screen')
+      .map((s) => ({ id: s.id, label: s.label, type: s.type, deviceId: s.deviceId || null }))
+    localStorage.setItem(STUDIO_CHANNELS_KEY, JSON.stringify(persistable))
+  }, [sources])
+
   const [tBarValue, setTBarValue] = useState(0)
   const [fadeDuration, setFadeDuration] = useState(1000)
   const [adding, setAdding] = useState('')
   const [tickerActive, setTickerActive] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  // Studio settings modal — logo/watermark is the first tab. The image blob
+  // lives in IndexedDB (same store used elsewhere for ticket/ad images);
+  // enabled/position are small enough for localStorage. Together that means
+  // the watermark survives a page reload instead of vanishing with it.
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsTab, setSettingsTab] = useState('logo')
+  const [logoEnabled, setLogoEnabled] = useState(() => localStorage.getItem('studio-logo-enabled') === '1')
+  const [logoPosition, setLogoPosition] = useState(() => localStorage.getItem('studio-logo-position') || 'bottom-right')
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('')
+  const logoPreviewUrlRef = useRef('')
+
+  useEffect(() => {
+    localStorage.setItem('studio-logo-enabled', logoEnabled ? '1' : '0')
+  }, [logoEnabled])
+
+  useEffect(() => {
+    localStorage.setItem('studio-logo-position', logoPosition)
+  }, [logoPosition])
 
   const {
     pvwLabel,
@@ -150,10 +366,71 @@ export default function GoLiveStudio({ events }) {
     tBarCommit,
     tBarCancel,
     setTicker,
+    setLogo,
     getPgmStream,
   } = useCompositor(pvwCanvasRef, pgmCanvasRef)
 
-  const { streaming, error: whipError, start: startWhip, stop: stopWhip } = useWhip()
+  // Keep the compositor's enabled/position in sync with the settings modal
+  useEffect(() => {
+    setLogo({ enabled: logoEnabled, position: logoPosition })
+  }, [logoEnabled, logoPosition, setLogo])
+
+  // Restore a previously-uploaded logo from IndexedDB on mount, so it
+  // survives a page reload instead of only living in this session's memory.
+  useEffect(() => {
+    let cancelled = false
+    getObjectURL(studioLogoKey()).then((url) => {
+      if (cancelled || !url) return
+      const img = new Image()
+      img.onload = () => {
+        if (!cancelled) setLogo({ image: img })
+      }
+      img.src = url
+      logoPreviewUrlRef.current = url
+      setLogoPreviewUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [setLogo])
+
+  async function handleUploadLogo(file) {
+    if (!file) return
+    await saveImage(studioLogoKey(), file)
+    const url = await getObjectURL(studioLogoKey())
+    if (!url) return
+
+    const img = new Image()
+    img.onload = () => {
+      setLogo({ image: img })
+      setLogoEnabled(true)
+    }
+    img.src = url
+
+    if (logoPreviewUrlRef.current) URL.revokeObjectURL(logoPreviewUrlRef.current)
+    logoPreviewUrlRef.current = url
+    setLogoPreviewUrl(url)
+  }
+
+  async function handleRemoveLogo() {
+    setLogo({ enabled: false, image: null })
+    setLogoEnabled(false)
+    if (logoPreviewUrlRef.current) URL.revokeObjectURL(logoPreviewUrlRef.current)
+    logoPreviewUrlRef.current = ''
+    setLogoPreviewUrl('')
+    await deleteImage(studioLogoKey())
+  }
+
+  const { streaming, error: whipError, start: startWhip, stop: stopWhip, replaceAudioTrack } = useWhip()
+
+  // The Audio channel (if one exists) is always the broadcast's live audio —
+  // it isn't part of the PVW/PGM switcher, so this just watches for it being
+  // added or having its input device swapped while already streaming.
+  useEffect(() => {
+    if (!streaming) return
+    const audioSource = sources.find((s) => s.type === 'audio')
+    replaceAudioTrack(audioSource ? audioSource.stream.getAudioTracks()[0] : null)
+  }, [sources, streaming])
 
   useEffect(() => {
     if (paidEvents.length > 0 && !selectedEventId) {
@@ -173,12 +450,15 @@ export default function GoLiveStudio({ events }) {
 
   // ─── Input actions ──────────────────────────────────────────────────────
 
-  async function handleAddCamera() {
+  async function handleAddCamera(customLabel, deviceId) {
     setAdding('camera')
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      const label = `Main Studio Cam ${sources.filter((s) => s.type === 'camera').length + 1}`
-      setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'camera' }])
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        audio: false,
+      })
+      const label = customLabel?.trim() || `Main Studio Cam ${sources.filter((s) => s.type === 'camera').length + 1}`
+      setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'camera', deviceId: deviceId || null }])
       setPvwSource(stream, label)
     } catch (err) {
       if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
@@ -189,18 +469,124 @@ export default function GoLiveStudio({ events }) {
     }
   }
 
-  async function handleAddScreen() {
-    setAdding('screen')
+  // The stream is already captured (and previewed) inside AddChannelModal —
+  // this just commits it as a channel, no second getDisplayMedia prompt.
+  // Note: screen shares are deliberately excluded from restore-on-reload
+  // (see the persist effect below) — browsers never allow silently
+  // re-triggering screen capture, a fresh user gesture is required every time.
+  function handleAddScreen(customLabel, stream) {
+    if (!stream) return
+    const label = customLabel?.trim() || `Screen Share ${sources.filter((s) => s.type === 'screen').length + 1}`
+    setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'screen' }])
+    setPvwSource(stream, label)
+  }
+
+  // Loads a file or Blob into an <img>, decoded and ready to draw — the
+  // object URL is safe to revoke right after onload since the pixel data is
+  // already decoded into the image element by that point. Used both when
+  // adding an image channel (from a File) and when restoring one from
+  // IndexedDB on mount (from the Blob saved there).
+  function loadImageFile(fileOrBlob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(fileOrBlob)
+      const img = new Image()
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img) }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not load image')) }
+      img.src = url
+    })
+  }
+
+  // Draws a loaded image once onto an offscreen canvas and captures that as
+  // a (near-static) MediaStream — this is what lets a static image slot into
+  // the exact same PVW/PGM/ticker pipeline as a camera or screen share.
+  function makeImageChannelStream(img) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1280
+    canvas.height = 720
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    const scale = Math.min(canvas.width / img.width, canvas.height / img.height)
+    const w = img.width * scale
+    const h = img.height * scale
+    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h)
+    return canvas.captureStream(1)
+  }
+
+  async function handleAddImage(file, customLabel) {
+    if (!file) return
+    setAdding('image')
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
-      const label = `Screen Share ${sources.filter((s) => s.type === 'screen').length + 1}`
-      setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'screen' }])
+      const img = await loadImageFile(file)
+      const stream = makeImageChannelStream(img)
+      const label = customLabel?.trim() || `Image ${sources.filter((s) => s.type === 'image').length + 1}`
+      const id = crypto.randomUUID()
+      await saveImage(studioChannelImageKey(id), file)
+      setSources((p) => [...p, { id, label, stream, type: 'image' }])
       setPvwSource(stream, label)
-    } catch {
-      // user cancelled
+    } catch (err) {
+      alert('Image error: ' + err.message)
     } finally {
       setAdding('')
     }
+  }
+
+  // Audio is capped at one channel — it isn't part of the PVW/PGM switcher at
+  // all, it's a standalone mic input that's always the broadcast's live audio
+  // (see the sources-watching effect below), so there's never a second one to mix.
+  async function handleAddAudio(customLabel, deviceId) {
+    if (sources.some((s) => s.type === 'audio')) return
+    setAdding('audio')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+        video: false,
+      })
+      const label = customLabel?.trim() || 'Main Audio Source'
+      setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'audio', deviceId: deviceId || null }])
+    } catch (err) {
+      if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+        alert('Microphone error: ' + err.message)
+      }
+    } finally {
+      setAdding('')
+    }
+  }
+
+  // Swaps the audio channel's input device — the sources-watching effect
+  // below picks up the new stream automatically and hot-swaps it into the
+  // live broadcast if already streaming.
+  async function handleSwitchAudioDevice(id, deviceId) {
+    const target = sources.find((s) => s.id === id)
+    if (!target) return
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+        video: false,
+      })
+      target.stream.getTracks().forEach((t) => t.stop())
+      setSources((prev) => prev.map((s) => (s.id === id ? { ...s, stream: newStream } : s)))
+    } catch (err) {
+      alert('Could not switch microphone: ' + err.message)
+    }
+  }
+
+  // Releases the underlying device/capture (camera, mic, screen, or the
+  // image's canvas track) and clears whichever bus it was occupying, same as
+  // unplugging a physical source.
+  function handleRemoveChannel(id) {
+    const target = sources.find((s) => s.id === id)
+    if (!target) return
+
+    target.stream.getTracks().forEach((t) => t.stop())
+    if (target.type === 'image') {
+      deleteImage(studioChannelImageKey(id)).catch(() => {})
+    }
+
+    if (pvwLabel === target.label) setPvwSource(null, '')
+    if (pgmLabel === target.label) setPgmSource(null, '')
+
+    setSources((prev) => prev.filter((s) => s.id !== id))
   }
 
   // ─── T-Bar ─────────────────────────────────────────────────────────────
@@ -244,13 +630,21 @@ export default function GoLiveStudio({ events }) {
       alert('Nothing on Program. Send a source to PGM first.')
       return
     }
-    await startWhip(pgmStream, creds.stream_ingest_url, creds.stream_key_value)
+    const audioSource = sources.find((s) => s.type === 'audio')
+    await startWhip(
+      pgmStream,
+      creds.stream_ingest_url,
+      creds.stream_key_value,
+      audioSource ? audioSource.stream.getAudioTracks()[0] : null
+    )
   }
 
-  function handleTickerUpdate(text, active) {
-    setTicker(text, active)
-    setTickerActive(active)
+  function handleTickerUpdate(patch) {
+    setTicker(patch)
+    if ('active' in patch) setTickerActive(patch.active)
   }
+
+  const hasAudioSource = sources.some((s) => s.type === 'audio')
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -266,8 +660,8 @@ export default function GoLiveStudio({ events }) {
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-lg leading-none">📺</span>
               <h2 className="text-sm font-black text-white tracking-tight">
-                Aether Production Center
-                <span className="text-gray-500 font-normal ml-1.5">(vMix Studio Interface)</span>
+                Virtual Event Live Production Center
+                <span className="text-gray-500 font-normal ml-1.5">(Studio Interface)</span>
               </h2>
             </div>
             <p className="text-[11px] text-gray-600 leading-relaxed">
@@ -276,15 +670,6 @@ export default function GoLiveStudio({ events }) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            {/* Connect Webcam shortcut */}
-            <button
-              onClick={handleAddCamera}
-              disabled={!!adding}
-              className="flex items-center gap-1.5 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-2 rounded-xl transition-colors disabled:opacity-40 font-medium"
-            >
-              📷 {adding === 'camera' ? 'Connecting…' : 'Connect Webcam'}
-            </button>
-
             {/* Overlay / ticker indicator */}
             <button
               className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border font-medium transition-colors ${
@@ -383,10 +768,10 @@ export default function GoLiveStudio({ events }) {
                 </div>
                 <div className="text-center">
                   <p className="text-[11px] uppercase tracking-widest font-black text-gray-600 mb-0.5">
-                    WEBCAM OFFLINE
+                    NO PREVIEW SOURCE
                   </p>
                   <p className="text-[10px] text-gray-700">
-                    Click "Connect Webcam" above to preview
+                    Use "+ Add Input Channel" below to get started
                   </p>
                 </div>
               </div>
@@ -455,30 +840,26 @@ export default function GoLiveStudio({ events }) {
           </div>
 
           {/* T-Bar */}
-          <div className="flex flex-col items-center gap-1.5 w-full mt-1">
-            <span className="text-[9px] text-gray-600 uppercase tracking-[0.18em] font-black">
+          <div className="flex flex-col items-center gap-2 w-full mt-1">
+            <span className="text-[9px] text-gray-600 uppercase tracking-[0.18em] font-black mt-2 mb-1">
               T-BAR switcher
             </span>
-            <div className="relative flex items-center justify-center" style={{ height: '110px', width: '100%' }}>
-              {/* Track */}
-              <div className="absolute left-1/2 -translate-x-1/2 w-2 rounded-full bg-gray-800 inset-y-0" />
+            <div className="flex items-center gap-2 w-full mt-2 mb-2">
+              <span className="text-[9px] text-teal-400 font-black shrink-0">PVW</span>
               <input
                 type="range"
                 min={0}
                 max={100}
                 value={tBarValue}
+                disabled={!pvwLabel}
                 onMouseDown={handleTBarDown}
                 onTouchStart={handleTBarDown}
                 onChange={handleTBarChange}
                 onMouseUp={handleTBarUp}
                 onTouchEnd={handleTBarUp}
-                className="absolute cursor-grab active:cursor-grabbing"
-                style={{
-                  transform: 'rotate(-90deg)',
-                  width: '110px',
-                  accentColor: '#a855f7',
-                }}
+                className="t-bar-slider flex-1 disabled:opacity-30 disabled:cursor-not-allowed"
               />
+              <span className="text-[9px] text-red-400 font-black shrink-0">PGM</span>
             </div>
             <span className="text-[11px] text-gray-500 font-black font-mono tabular-nums">
               {tBarValue}% Mix
@@ -546,26 +927,32 @@ export default function GoLiveStudio({ events }) {
         </div>
       </div>
 
+      {/* ══ TICKER ══════════════════════════════════════════════════════════ */}
+      <div className="px-5 py-3 border-t border-gray-800" style={{ background: '#111' }}>
+        <Ticker onUpdate={handleTickerUpdate} />
+      </div>
+
       {/* ══ INPUT CHANNELS ══════════════════════════════════════════════════ */}
       <div className="px-5 pb-5 border-t border-gray-800/50">
         <div className="flex items-center justify-between py-3">
           <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.22em]">
-            vMix Studio Input Channels ({sources.length})
+            Studio Input Channels ({sources.length})
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleAddScreen}
-              disabled={!!adding}
-              className="text-[11px] bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1.5 font-medium"
-            >
-              🖥 {adding === 'screen' ? 'Sharing…' : 'Add Screen'}
-            </button>
-            <button
-              onClick={handleAddCamera}
+              onClick={() => setShowAddModal(true)}
               disabled={!!adding}
               className="text-[11px] bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1.5 font-semibold"
             >
-              + Add Input Channel
+              {adding ? `Adding ${adding}…` : '+ Add Input Channel'}
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
+              title="Studio settings"
+              className="text-gray-500 hover:text-gray-300 border border-gray-700 hover:border-gray-600 rounded-lg w-8 h-8 flex items-center justify-center transition-colors shrink-0"
+            >
+              ⚙
             </button>
           </div>
         </div>
@@ -574,11 +961,11 @@ export default function GoLiveStudio({ events }) {
           <div className="border-2 border-dashed border-gray-800 rounded-xl py-8 text-center">
             <p className="text-gray-700 text-sm">No input channels yet.</p>
             <p className="text-gray-700 text-xs mt-1">
-              Click "Add Input Channel" to connect a webcam, or "Add Screen" to share your display.
+              Click "+ Add Input Channel" to connect a camera, screen share, image, or audio-only source.
             </p>
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-3 pb-1">
             {sources.map((src, i) => (
               <ChannelCard
                 key={src.id}
@@ -588,16 +975,40 @@ export default function GoLiveStudio({ events }) {
                 isInPgm={pgmLabel === src.label}
                 onSendToPvw={(stream, label) => setPvwSource(stream, label)}
                 onSendToPgm={(stream, label) => setPgmSource(stream, label)}
+                onSwitchAudioDevice={handleSwitchAudioDevice}
+                onRemove={handleRemoveChannel}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* ══ TICKER ══════════════════════════════════════════════════════════ */}
-      <div className="px-5 py-3 border-t border-gray-800" style={{ background: '#111' }}>
-        <Ticker onUpdate={handleTickerUpdate} />
-      </div>
+      {showAddModal && (
+        <AddChannelModal
+          hasAudioSource={hasAudioSource}
+          adding={adding}
+          onAddCamera={handleAddCamera}
+          onAddScreen={handleAddScreen}
+          onAddImage={handleAddImage}
+          onAddAudio={handleAddAudio}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {showSettings && (
+        <StudioSettingsModal
+          activeTab={settingsTab}
+          onTabChange={setSettingsTab}
+          onClose={() => setShowSettings(false)}
+          logoEnabled={logoEnabled}
+          logoPosition={logoPosition}
+          logoPreviewUrl={logoPreviewUrl}
+          onToggleLogo={() => setLogoEnabled((v) => !v)}
+          onChangeLogoPosition={setLogoPosition}
+          onUploadLogo={handleUploadLogo}
+          onRemoveLogo={handleRemoveLogo}
+        />
+      )}
     </div>
   )
 }

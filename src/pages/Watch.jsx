@@ -3,6 +3,8 @@ import { useParams, useSearchParams, Link } from 'react-router-dom'
 import Hls from 'hls.js'
 import ChatPanel from '../components/ChatPanel'
 
+const LIVE_POLL_MS = 5000
+
 export default function Watch() {
   const { id } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -17,6 +19,10 @@ export default function Watch() {
   const [authorized, setAuthorized] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // playback_url is set as soon as the channel is provisioned (venue-fee time),
+  // long before the host ever goes live — isLive is the real "watch now or not"
+  // signal, polled from AWS IVS's actual stream state.
+  const [isLive, setIsLive] = useState(false)
 
   async function verify(code) {
     setLoading(true)
@@ -43,9 +49,37 @@ export default function Watch() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codeFromUrl, id])
 
+  // Poll whether the host is actually broadcasting right now — the channel
+  // being provisioned says nothing about whether anyone is live on it.
+  useEffect(() => {
+    if (!authorized) return
+    let cancelled = false
+
+    async function poll() {
+      try {
+        const res = await fetch(`/api/v1/events/${id}/stream-status`)
+        const data = await res.json()
+        if (!cancelled) setIsLive(!!data.live)
+      } catch {
+        // transient network hiccup — leave isLive as-is, the next poll retries
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, LIVE_POLL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [authorized, id])
+
   useEffect(() => {
     const video = videoRef.current
-    if (!playbackUrl || !video) return
+    if (!isLive || !playbackUrl || !video) {
+      hlsRef.current?.destroy()
+      hlsRef.current = null
+      return
+    }
 
     if (hlsRef.current) {
       hlsRef.current.destroy()
@@ -57,6 +91,14 @@ export default function Watch() {
       hlsRef.current = hls
       hls.loadSource(playbackUrl)
       hls.attachMedia(video)
+      // On a fatal error (e.g. the host just stopped streaming), tear down —
+      // the stream-status poll above will re-attach automatically once live again.
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          hls.destroy()
+          hlsRef.current = null
+        }
+      })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = playbackUrl
     } else {
@@ -67,7 +109,7 @@ export default function Watch() {
       hlsRef.current?.destroy()
       hlsRef.current = null
     }
-  }, [playbackUrl])
+  }, [playbackUrl, isLive])
 
   function handleSubmitCode(e) {
     e.preventDefault()
@@ -123,11 +165,11 @@ export default function Watch() {
         {/* ── Left: player ── */}
         <div className="flex-1 min-w-0">
           <div className="mb-4 flex items-center gap-3">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-red-500 animate-pulse' : 'bg-gray-600'}`} />
             <h1 className="text-xl font-semibold">{title}</h1>
           </div>
 
-          {playbackUrl ? (
+          {isLive && playbackUrl ? (
             <div className="aspect-video bg-black rounded-2xl overflow-hidden">
               <video
                 ref={videoRef}
@@ -141,12 +183,7 @@ export default function Watch() {
             <div className="aspect-video bg-gray-900 border border-gray-800 rounded-2xl flex flex-col items-center justify-center gap-3 text-center px-6">
               <span className="w-2.5 h-2.5 rounded-full bg-gray-600 animate-pulse" />
               <p className="text-gray-400">Waiting for the host to go live…</p>
-              <button
-                onClick={() => verify(codeFromUrl)}
-                className="text-purple-400 hover:text-purple-300 text-sm transition-colors"
-              >
-                Refresh
-              </button>
+              <p className="text-gray-600 text-xs">This page updates automatically once the stream starts.</p>
             </div>
           )}
 

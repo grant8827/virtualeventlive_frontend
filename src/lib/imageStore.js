@@ -57,3 +57,12 @@ export function imgKey(eventId) {
 export function adImgKey(eventId) {
   return `ad-img-${eventId}`
 }
+
+// Single fixed key — there's only ever one station watermark.
+export function studioLogoKey() {
+  return 'studio-logo'
+}
+
+export function studioChannelImageKey(channelId) {
+  return `studio-channel-img-${channelId}`
+}
