@@ -43,6 +43,17 @@ export default function DashboardPage() {
   const [bypassLoading, setBypassLoading] = useState(false)
   const [bypassError, setBypassError] = useState('')
 
+  // Payouts tab — gateway connection status + pending balance
+  const [payoutStatus, setPayoutStatus] = useState(null)
+  const [payoutStatusLoading, setPayoutStatusLoading] = useState(false)
+  const [payoutBalance, setPayoutBalance] = useState(null)
+  const [wipayInput, setWipayInput] = useState('')
+  const [paypalInput, setPaypalInput] = useState('')
+  const [gatewayConnecting, setGatewayConnecting] = useState('')
+  const [gatewayConnectError, setGatewayConnectError] = useState('')
+  const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
+  const [payoutTriggerMessage, setPayoutTriggerMessage] = useState('')
+
   useEffect(() => {
     if (searchParams.get('venue_paid') === '1') {
       setSearchParams({}, { replace: true })
@@ -53,6 +64,71 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchEvents()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'payouts') fetchPayoutStatus()
+  }, [activeTab])
+
+  async function fetchPayoutStatus() {
+    setPayoutStatusLoading(true)
+    try {
+      const [status, balance] = await Promise.all([
+        api.get('/connect/status'),
+        api.get('/connect/balance'),
+      ])
+      setPayoutStatus(status)
+      setPayoutBalance(balance)
+    } catch {
+      setPayoutStatus(null)
+      setPayoutBalance(null)
+    } finally {
+      setPayoutStatusLoading(false)
+    }
+  }
+
+  async function handleConnectWiPay() {
+    if (!wipayInput.trim()) return
+    setGatewayConnectError('')
+    setGatewayConnecting('wipay')
+    try {
+      await api.post('/connect/wipay', { account_id: wipayInput.trim() })
+      setWipayInput('')
+      await fetchPayoutStatus()
+    } catch (err) {
+      setGatewayConnectError(err.message)
+    } finally {
+      setGatewayConnecting('')
+    }
+  }
+
+  async function handleConnectPayPal() {
+    if (!paypalInput.trim()) return
+    setGatewayConnectError('')
+    setGatewayConnecting('paypal')
+    try {
+      await api.post('/connect/paypal', { account_id: paypalInput.trim() })
+      setPaypalInput('')
+      await fetchPayoutStatus()
+    } catch (err) {
+      setGatewayConnectError(err.message)
+    } finally {
+      setGatewayConnecting('')
+    }
+  }
+
+  async function handleTriggerPayout() {
+    setPayoutTriggerMessage('')
+    setPayoutTriggerLoading(true)
+    try {
+      const data = await api.post('/connect/payout', {})
+      setPayoutTriggerMessage(`Sent $${Number(data.amount).toFixed(2)} via ${data.gateway}.`)
+      await fetchPayoutStatus()
+    } catch (err) {
+      setPayoutTriggerMessage(err.message)
+    } finally {
+      setPayoutTriggerLoading(false)
+    }
+  }
 
   async function fetchEvents() {
     setEventsLoading(true)
@@ -1208,38 +1284,148 @@ export default function DashboardPage() {
 
       {/* ── Payouts ── */}
       {activeTab === 'payouts' && (
-        <div className="max-w-md">
-          <h2 className="text-lg font-semibold mb-2">Stripe Payouts</h2>
+        <div className="max-w-4xl">
+          <h2 className="text-lg font-semibold mb-2">Payouts</h2>
           <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-            Connect your Stripe account to receive ticket revenue. Funds transfer automatically
-            after each sale.
+            Connect a payout account to receive ticket revenue. Choose Stripe, WiPay, or PayPal —
+            whichever one you connect most recently becomes your active gateway.
           </p>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4 mb-4">
-            <div className="space-y-2 text-sm text-gray-300">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Venue fee</span>
-                <span>$20/hr (ceiling)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Platform commission</span>
-                <span>10% per ticket</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Your cut</span>
-                <span className="text-green-400 font-semibold">90% of ticket revenue</span>
-              </div>
+
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Venue fee</span>
+              <span>$20/hr (ceiling)</span>
             </div>
-            <div className="border-t border-gray-800 pt-4">
-              <button
-                onClick={handleStripeConnect}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-colors"
-              >
-                Connect Stripe Account →
-              </button>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Platform commission</span>
+              <span>10% per ticket</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Your cut</span>
+              <span className="text-green-400 font-semibold">90% of ticket revenue</span>
             </div>
           </div>
+
+          {gatewayConnectError && (
+            <p className="text-red-400 text-sm mb-4">{gatewayConnectError}</p>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          {/* Stripe */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+            <h3 className="font-semibold">Stripe</h3>
+            {payoutStatus?.stripe?.connected && (
+              <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'stripe' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
+                {payoutStatus.active_gateway === 'stripe' ? 'Active' : 'Connected'}
+              </span>
+            )}
+            <p className="text-gray-500 text-xs my-4 flex-1">
+              Funds transfer to your Stripe account automatically after each sale.
+            </p>
+            <button
+              onClick={handleStripeConnect}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-colors"
+            >
+              {payoutStatus?.stripe?.connected ? 'Manage Stripe Account →' : 'Connect Stripe Account →'}
+            </button>
+          </div>
+
+          {/* WiPay */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+            <h3 className="font-semibold">WiPay</h3>
+            {payoutStatus?.wipay?.connected && (
+              <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'wipay' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
+                {payoutStatus.active_gateway === 'wipay' ? 'Active' : 'Connected'}
+              </span>
+            )}
+            <p className="text-gray-500 text-xs my-4 flex-1">
+              Caribbean payout rail. Ticket sales settle to the platform first; payouts to your
+              WiPay account are sent in a batch you trigger below.
+            </p>
+            {payoutStatus?.wipay?.connected ? (
+              <p className="text-sm text-gray-300 w-full break-all">Account: {payoutStatus.wipay.account_id}</p>
+            ) : (
+              <div className="flex flex-col gap-2 w-full">
+                <input
+                  type="text"
+                  value={wipayInput}
+                  onChange={(e) => setWipayInput(e.target.value)}
+                  placeholder="WiPay account number"
+                  className="w-full min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center"
+                />
+                <button
+                  onClick={handleConnectWiPay}
+                  disabled={gatewayConnecting === 'wipay'}
+                  className="w-full bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                >
+                  {gatewayConnecting === 'wipay' ? 'Connecting…' : 'Connect'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* PayPal */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+            <h3 className="font-semibold">PayPal</h3>
+            {payoutStatus?.paypal?.connected && (
+              <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'paypal' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
+                {payoutStatus.active_gateway === 'paypal' ? 'Active' : 'Connected'}
+              </span>
+            )}
+            <p className="text-gray-500 text-xs my-4 flex-1">
+              Ticket sales settle to the platform first; payouts to your PayPal email are sent in
+              a batch you trigger below.
+            </p>
+            {payoutStatus?.paypal?.connected ? (
+              <p className="text-sm text-gray-300 w-full break-all">Account: {payoutStatus.paypal.account_id}</p>
+            ) : (
+              <div className="flex flex-col gap-2 w-full">
+                <input
+                  type="email"
+                  value={paypalInput}
+                  onChange={(e) => setPaypalInput(e.target.value)}
+                  placeholder="PayPal email"
+                  className="w-full min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center"
+                />
+                <button
+                  onClick={handleConnectPayPal}
+                  disabled={gatewayConnecting === 'paypal'}
+                  className="w-full bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                >
+                  {gatewayConnecting === 'paypal' ? 'Connecting…' : 'Connect'}
+                </button>
+              </div>
+            )}
+          </div>
+          </div>
+
+          {/* Pending balance + manual payout trigger — WiPay/PayPal only */}
+          {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Pending balance</h3>
+                <span className="text-green-400 font-semibold">
+                  ${Number(payoutBalance?.pending_amount || 0).toFixed(2)}
+                </span>
+              </div>
+              <button
+                onClick={handleTriggerPayout}
+                disabled={payoutTriggerLoading || !(payoutBalance?.pending_amount > 0)}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
+              >
+                {payoutTriggerLoading ? 'Sending…' : `Request Payout via ${payoutStatus.active_gateway}`}
+              </button>
+              {payoutTriggerMessage && (
+                <p className="text-sm text-gray-400 mt-3">{payoutTriggerMessage}</p>
+              )}
+            </div>
+          )}
+
+          {payoutStatusLoading && (
+            <p className="text-xs text-gray-600 text-center mb-4">Loading payout status…</p>
+          )}
           <p className="text-xs text-gray-600 text-center">
-            Powered by Stripe Connect. Your banking info is never stored on our servers.
+            Your banking info is never stored on our servers.
           </p>
         </div>
       )}
