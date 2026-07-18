@@ -17,7 +17,7 @@ const TABS = [
 export default function DashboardPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [activeTab, setActiveTab] = useState('setup')
+  const [activeTab, setActiveTab] = useState('golive')
   const [events, setEvents] = useState([])
   const [eventsLoading, setEventsLoading] = useState(true)
 
