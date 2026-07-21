@@ -53,6 +53,14 @@ export default function DashboardPage() {
   const [gatewayConnectError, setGatewayConnectError] = useState('')
   const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
   const [payoutTriggerMessage, setPayoutTriggerMessage] = useState('')
+  const [payoutSecurityLoading, setPayoutSecurityLoading] = useState(false)
+  const [payoutPasscodeSet, setPayoutPasscodeSet] = useState(null)
+  const [payoutUnlocked, setPayoutUnlocked] = useState(false)
+  const [payoutToken, setPayoutToken] = useState('')
+  const [payoutPasscode, setPayoutPasscode] = useState('')
+  const [payoutPasscodeConfirm, setPayoutPasscodeConfirm] = useState('')
+  const [payoutAccountPassword, setPayoutAccountPassword] = useState('')
+  const [payoutSecurityError, setPayoutSecurityError] = useState('')
 
   useEffect(() => {
     if (searchParams.get('venue_paid') === '1') {
@@ -66,15 +74,76 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'payouts') fetchPayoutStatus()
-  }, [activeTab])
+    if (!payoutToken) return undefined
+    const timer = window.setTimeout(() => lockPayouts(), 5 * 60 * 1000)
+    return () => window.clearTimeout(timer)
+  }, [payoutToken])
 
-  async function fetchPayoutStatus() {
+  function lockPayouts() {
+    setPayoutUnlocked(false)
+    setPayoutToken('')
+    setPayoutStatus(null)
+    setPayoutBalance(null)
+    setPayoutPasscode('')
+    setPayoutPasscodeConfirm('')
+    setPayoutAccountPassword('')
+    setPayoutSecurityError('')
+  }
+
+  async function handleTabChange(tabID) {
+    if (tabID !== 'payouts') {
+      if (activeTab === 'payouts') lockPayouts()
+      setActiveTab(tabID)
+      return
+    }
+
+    lockPayouts()
+    setActiveTab('payouts')
+    setPayoutSecurityLoading(true)
+    setPayoutPasscodeSet(null)
+    try {
+      const data = await api.get('/connect/security/status')
+      setPayoutPasscodeSet(Boolean(data.passcode_set))
+    } catch (err) {
+      setPayoutSecurityError(err.message)
+    } finally {
+      setPayoutSecurityLoading(false)
+    }
+  }
+
+  async function handlePayoutSecuritySubmit(e) {
+    e.preventDefault()
+    setPayoutSecurityError('')
+    setPayoutSecurityLoading(true)
+    try {
+      const data = payoutPasscodeSet
+        ? await api.post('/connect/security/unlock', { passcode: payoutPasscode })
+        : await api.post('/connect/security/passcode', {
+            passcode: payoutPasscode,
+            confirm_passcode: payoutPasscodeConfirm,
+            password: payoutAccountPassword,
+          })
+      setPayoutToken(data.payout_token)
+      setPayoutUnlocked(true)
+      setPayoutPasscodeSet(true)
+      setPayoutPasscode('')
+      setPayoutPasscodeConfirm('')
+      setPayoutAccountPassword('')
+      await fetchPayoutStatus(data.payout_token)
+    } catch (err) {
+      setPayoutSecurityError(err.message)
+    } finally {
+      setPayoutSecurityLoading(false)
+    }
+  }
+
+  async function fetchPayoutStatus(token = payoutToken) {
+    if (!token) return
     setPayoutStatusLoading(true)
     try {
       const [status, balance] = await Promise.all([
-        api.get('/connect/status'),
-        api.get('/connect/balance'),
+        api.secureGet('/connect/status', token),
+        api.secureGet('/connect/balance', token),
       ])
       setPayoutStatus(status)
       setPayoutBalance(balance)
@@ -91,7 +160,7 @@ export default function DashboardPage() {
     setGatewayConnectError('')
     setGatewayConnecting('wipay')
     try {
-      await api.post('/connect/wipay', { account_id: wipayInput.trim() })
+      await api.securePost('/connect/wipay', { account_id: wipayInput.trim() }, payoutToken)
       setWipayInput('')
       await fetchPayoutStatus()
     } catch (err) {
@@ -106,7 +175,7 @@ export default function DashboardPage() {
     setGatewayConnectError('')
     setGatewayConnecting('paypal')
     try {
-      await api.post('/connect/paypal', { account_id: paypalInput.trim() })
+      await api.securePost('/connect/paypal', { account_id: paypalInput.trim() }, payoutToken)
       setPaypalInput('')
       await fetchPayoutStatus()
     } catch (err) {
@@ -120,7 +189,7 @@ export default function DashboardPage() {
     setPayoutTriggerMessage('')
     setPayoutTriggerLoading(true)
     try {
-      const data = await api.post('/connect/payout', {})
+      const data = await api.securePost('/connect/payout', {}, payoutToken)
       setPayoutTriggerMessage(`Sent $${Number(data.amount).toFixed(2)} via ${data.gateway}.`)
       await fetchPayoutStatus()
     } catch (err) {
@@ -288,7 +357,7 @@ export default function DashboardPage() {
 
   async function handleStripeConnect() {
     try {
-      const data = await api.post('/connect/onboard', {})
+      const data = await api.securePost('/connect/onboard', {}, payoutToken)
       if (data.url) window.location.href = data.url
     } catch (err) {
       alert(err.message)
@@ -506,7 +575,7 @@ export default function DashboardPage() {
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             className={`flex-1 min-w-20 text-sm font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'bg-purple-600 text-white'
@@ -1283,7 +1352,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Payouts ── */}
-      {activeTab === 'payouts' && (
+      {activeTab === 'payouts' && payoutUnlocked && (
         <div className="max-w-4xl">
           <h2 className="text-lg font-semibold mb-2">Payouts</h2>
           <p className="text-gray-400 text-sm mb-6 leading-relaxed">
@@ -1427,6 +1496,111 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-600 text-center">
             Your banking info is never stored on our servers.
           </p>
+        </div>
+      )}
+
+      {activeTab === 'payouts' && !payoutUnlocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
+            <div className="mb-5 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-purple-950 text-2xl">🔒</div>
+              <h2 className="text-xl font-bold">
+                {payoutPasscodeSet === false ? 'Create payout passcode' : 'Unlock payouts'}
+              </h2>
+              <p className="mt-2 text-sm text-gray-400">
+                {payoutPasscodeSet === false
+                  ? 'Create a 6-digit code to protect payout accounts and transfers.'
+                  : 'Enter your 6-digit payout passcode. This section locks again when you leave it.'}
+              </p>
+            </div>
+
+            {payoutPasscodeSet === null ? (
+              payoutSecurityLoading ? (
+                <p className="py-6 text-center text-sm text-gray-400">Checking payout security…</p>
+              ) : (
+                <div className="space-y-3 text-center">
+                  <p className="text-sm text-red-400">{payoutSecurityError || 'Unable to check payout security.'}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('payouts')}
+                    className="w-full rounded-xl bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('golive')}
+                    className="w-full py-2 text-sm text-gray-500 hover:text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )
+            ) : (
+              <form onSubmit={handlePayoutSecuritySubmit} className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-sm text-gray-400">6-digit passcode</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    pattern="[0-9]{6}"
+                    required
+                    autoFocus
+                    value={payoutPasscode}
+                    onChange={(e) => setPayoutPasscode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-center text-2xl tracking-[0.5em] focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                {payoutPasscodeSet === false && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm text-gray-400">Confirm passcode</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                        required
+                        value={payoutPasscodeConfirm}
+                        onChange={(e) => setPayoutPasscodeConfirm(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 text-center text-2xl tracking-[0.5em] focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm text-gray-400">Current account password</label>
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={payoutAccountPassword}
+                        onChange={(e) => setPayoutAccountPassword(e.target.value)}
+                        className="w-full rounded-xl border border-gray-700 bg-gray-950 px-4 py-3 focus:border-purple-500 focus:outline-none"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {payoutSecurityError && <p className="text-sm text-red-400">{payoutSecurityError}</p>}
+                <button
+                  type="submit"
+                  disabled={payoutSecurityLoading || payoutPasscode.length !== 6}
+                  className="w-full rounded-xl bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {payoutSecurityLoading ? 'Please wait…' : payoutPasscodeSet === false ? 'Create & Unlock' : 'Unlock Payouts'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('golive')}
+                  className="w-full py-2 text-sm text-gray-500 hover:text-gray-300"
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>
