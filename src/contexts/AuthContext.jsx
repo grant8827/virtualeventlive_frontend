@@ -36,8 +36,8 @@ export function AuthProvider({ children }) {
     return data
   }
 
-  async function register(email, password, role) {
-    return api.post('/auth/register', { email, password, role })
+  async function register(payload) {
+    return api.post('/auth/register', payload)
   }
 
   function logout() {
