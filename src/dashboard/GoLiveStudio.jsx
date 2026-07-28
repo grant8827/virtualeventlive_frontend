@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { api } from '../api/client'
 import { useCompositor } from './studio/useCompositor'
-import { useWhip } from './studio/useWhip'
+import { useIvsBroadcast } from './studio/useIvsBroadcast'
 import Ticker from './studio/Ticker'
 import StudioSettingsModal from './studio/StudioSettingsModal'
 import AddChannelModal from './studio/AddChannelModal'
@@ -422,7 +422,13 @@ export default function GoLiveStudio({ events }) {
     await deleteImage(studioLogoKey())
   }
 
-  const { streaming, error: whipError, start: startWhip, stop: stopWhip, replaceAudioTrack } = useWhip()
+  const {
+    streaming,
+    error: broadcastError,
+    start: startBroadcast,
+    stop: stopBroadcast,
+    replaceAudioTrack,
+  } = useIvsBroadcast()
 
   // The Audio channel (if one exists) is always the broadcast's live audio —
   // it isn't part of the PVW/PGM switcher, so this just watches for it being
@@ -651,7 +657,7 @@ export default function GoLiveStudio({ events }) {
     }
 
     const audioSource = sources.find((s) => s.type === 'audio')
-    await startWhip(
+    await startBroadcast(
       pgmStream,
       activeCreds.stream_ingest_url,
       activeCreds.stream_key_value,
@@ -747,7 +753,7 @@ export default function GoLiveStudio({ events }) {
             {/* Go Live / Stop */}
             {streaming ? (
               <button
-                onClick={stopWhip}
+                onClick={stopBroadcast}
                 className="flex items-center gap-2 text-xs bg-red-700 hover:bg-red-600 text-white font-black px-4 py-2 rounded-xl transition-colors tracking-wide"
               >
                 <span className="w-2 h-2 rounded-full bg-red-200 animate-pulse" />
@@ -764,7 +770,7 @@ export default function GoLiveStudio({ events }) {
             )}
           </div>
         </div>
-        {whipError && <p className="mt-2 text-[11px] text-red-400">⚠ {whipError}</p>}
+        {broadcastError && <p className="mt-2 text-[11px] text-red-400">⚠ {broadcastError}</p>}
       </div>
 
       {/* ══ PVW / TRANSITIONS / PGM ══════════════════════════════════════════ */}
