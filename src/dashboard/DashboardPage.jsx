@@ -880,7 +880,6 @@ export default function DashboardPage() {
                 const starts = new Date(ev.starts_at)
                 const ends = ev.ends_at ? new Date(ev.ends_at) : null
                 const hours = ends ? Math.ceil((ends - starts) / 3600000) : null
-                const isUpcoming = starts.getTime() > Date.now()
 
                 return (
                   <div key={ev.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
@@ -938,14 +937,12 @@ export default function DashboardPage() {
                             Pay ${ev.venue_fee.toFixed(2)} to Activate
                           </button>
                         )}
-                        {isUpcoming && (
-                          <button
-                            onClick={() => requestEventDelete(ev)}
-                            className="text-sm border border-red-800 bg-red-950/50 hover:bg-red-900 text-red-400 hover:text-red-200 px-4 py-2 rounded-xl transition-colors font-semibold"
-                          >
-                            Delete
-                          </button>
-                        )}
+                        <button
+                          onClick={() => requestEventDelete(ev)}
+                          className="text-sm border border-red-800 bg-red-950/50 hover:bg-red-900 text-red-400 hover:text-red-200 px-4 py-2 rounded-xl transition-colors font-semibold"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
 
@@ -1649,9 +1646,9 @@ export default function DashboardPage() {
         >
           <div className="w-full max-w-md rounded-2xl border border-red-900 bg-gray-900 p-6 shadow-2xl">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-950 text-2xl">⚠️</div>
-            <h2 className="text-center text-xl font-bold text-white">Delete upcoming event?</h2>
+            <h2 className="text-center text-xl font-bold text-white">Remove this event?</h2>
             <p className="mt-2 text-center text-sm text-gray-400">
-              You are about to permanently delete <span className="font-semibold text-white">{eventToDelete.title}</span>.
+              Do you want to permanently remove <span className="font-semibold text-white">{eventToDelete.title}</span> and its related tickets and event data?
             </p>
             <div className="mt-5 rounded-xl border border-red-900/70 bg-red-950/30 p-4 text-sm text-red-200">
               <p className="font-semibold">This cannot be undone:</p>
