@@ -589,6 +589,16 @@ export default function GoLiveStudio({ events }) {
       const screenSource = sources.find((s) => s.id === screenId)
       const track = screenSource?.stream.getAudioTracks()[0]
       if (!track) return null
+      // Chrome can hand back a track that's already muted or ended (e.g. the
+      // shared tab was silent at capture time, or the share ended) — surface
+      // that immediately instead of silently wiring in a dead track.
+      if (track.readyState !== 'live') {
+        alert(`"${screenSource.label}"'s audio has already ended — re-share the tab to pick it up again.`)
+        return null
+      }
+      if (track.muted) {
+        console.warn(`[audio] "${screenSource.label}"'s captured audio track reports muted:true — the shared tab may not actually be producing sound.`)
+      }
       return { stream: new MediaStream([track]), borrowedTrack: true, label: `${screenSource.label} Audio` }
     }
     return null
