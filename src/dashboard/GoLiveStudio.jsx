@@ -16,15 +16,26 @@ const SOURCE_OFFLINE_LABELS = { camera: 'WEBCAM OFFLINE', screen: 'SCREEN SHARE'
 // share's audio" rather than a real MediaDevices deviceId.
 const SCREEN_AUDIO_PREFIX = 'screen:'
 
-// The dedicated "Audio Only" mic source always wins when present. Otherwise,
-// fall back to a screen share's own audio track (e.g. a shared tab playing
-// music/video) — only Chrome/Edge actually populate that track, and only
-// when the host opts in via the browser's own "Share audio" checkbox.
+function getLiveAudioTrack(stream) {
+  return stream
+    ?.getAudioTracks()
+    .find((track) => track.readyState === 'live' && track.enabled) || null
+}
+
+// The dedicated "Audio Only" source wins when usable. Otherwise, fall back
+// to a screen share's audio (only supplied by supported browsers when the
+// host opts in through the browser's "Share audio" checkbox).
 function getBroadcastAudioTrack(sources) {
   const audioSource = sources.find((s) => s.type === 'audio')
-  if (audioSource) return audioSource.stream.getAudioTracks()[0]
-  const screenWithAudio = sources.find((s) => s.type === 'screen' && s.stream.getAudioTracks().length > 0)
-  return screenWithAudio ? screenWithAudio.stream.getAudioTracks()[0] : null
+  const audioTrack = getLiveAudioTrack(audioSource?.stream)
+  if (audioTrack) return audioTrack
+
+  for (const source of sources) {
+    if (source.type !== 'screen') continue
+    const screenTrack = getLiveAudioTrack(source.stream)
+    if (screenTrack) return screenTrack
+  }
+  return null
 }
 
 // ─── Live input-level meter, driven by a real AnalyserNode (no simulated data) ──
@@ -463,7 +474,7 @@ export default function GoLiveStudio({ events }) {
   useEffect(() => {
     if (!streaming) return
     replaceAudioTrack(getBroadcastAudioTrack(sources))
-  }, [sources, streaming])
+  }, [sources, streaming, replaceAudioTrack])
 
   // A screen share's audio track can end at any moment — the tab gets
   // closed, the host clicks "Stop sharing", etc. Without this, the Audio
