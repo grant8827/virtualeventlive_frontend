@@ -251,6 +251,7 @@ export default function GoLiveStudio({ events }) {
   const [selectedEventId, setSelectedEventId] = useState('')
   const [creds, setCreds] = useState(null)
   const [credsLoading, setCredsLoading] = useState(false)
+  const [reprovisioning, setReprovisioning] = useState(false)
 
   const [sources, setSources] = useState([])
   const restoredChannelsRef = useRef(false)
@@ -447,6 +448,20 @@ export default function GoLiveStudio({ events }) {
       .catch(() => setCreds(null))
       .finally(() => setCredsLoading(false))
   }, [selectedEventId])
+
+  async function handleReprovision() {
+    if (!selectedEventId) return
+    setReprovisioning(true)
+    try {
+      await api.post(`/events/${selectedEventId}/reprovision-stream`, {})
+      const fresh = await api.get(`/events/${selectedEventId}/stream-credentials`)
+      setCreds(fresh)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setReprovisioning(false)
+    }
+  }
 
   // ─── Input actions ──────────────────────────────────────────────────────
 
@@ -712,6 +727,16 @@ export default function GoLiveStudio({ events }) {
                 <span className={`w-1.5 h-1.5 rounded-full ${creds.ivs_ready ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
                 {creds.ivs_ready ? 'IVS Ready' : 'IVS Offline'}
               </div>
+            )}
+
+            {!credsLoading && creds && !creds.ivs_ready && (
+              <button
+                onClick={handleReprovision}
+                disabled={reprovisioning}
+                className="text-[11px] px-2.5 py-2 rounded-xl border border-gray-700 text-gray-300 hover:border-purple-500 hover:text-purple-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              >
+                {reprovisioning ? 'Retrying…' : 'Retry setup'}
+              </button>
             )}
 
             {/* Go Live / Stop */}
