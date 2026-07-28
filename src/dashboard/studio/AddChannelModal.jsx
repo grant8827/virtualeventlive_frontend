@@ -76,7 +76,11 @@ export default function AddChannelModal({ hasAudioSource, adding, onAddCamera, o
   async function handleCaptureScreen() {
     setScreenError('')
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      // audio: true lets Chrome/Edge capture the shared tab or system audio —
+      // the browser's own share picker still requires the host to opt in via
+      // its "Share audio" checkbox. Safari has no support for this at all and
+      // will just come back with no audio track, silently.
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
       if (screenStream) screenStream.getTracks().forEach((t) => t.stop())
       setScreenStream(stream)
     } catch (err) {

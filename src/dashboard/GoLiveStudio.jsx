@@ -12,6 +12,17 @@ const STUDIO_CHANNELS_KEY = 'studio-channels'
 const SOURCE_ICONS = { camera: '📷', screen: '🖥', image: '🖼', audio: '🎤' }
 const SOURCE_OFFLINE_LABELS = { camera: 'WEBCAM OFFLINE', screen: 'SCREEN SHARE', image: 'LOADING IMAGE…', audio: 'AUDIO ONLY' }
 
+// The dedicated "Audio Only" mic source always wins when present. Otherwise,
+// fall back to a screen share's own audio track (e.g. a shared tab playing
+// music/video) — only Chrome/Edge actually populate that track, and only
+// when the host opts in via the browser's own "Share audio" checkbox.
+function getBroadcastAudioTrack(sources) {
+  const audioSource = sources.find((s) => s.type === 'audio')
+  if (audioSource) return audioSource.stream.getAudioTracks()[0]
+  const screenWithAudio = sources.find((s) => s.type === 'screen' && s.stream.getAudioTracks().length > 0)
+  return screenWithAudio ? screenWithAudio.stream.getAudioTracks()[0] : null
+}
+
 // ─── Live input-level meter, driven by a real AnalyserNode (no simulated data) ──
 function AudioLevelMeter({ stream }) {
   const [level, setLevel] = useState(0)
@@ -432,11 +443,11 @@ export default function GoLiveStudio({ events }) {
 
   // The Audio channel (if one exists) is always the broadcast's live audio —
   // it isn't part of the PVW/PGM switcher, so this just watches for it being
-  // added or having its input device swapped while already streaming.
+  // added or having its input device swapped while already streaming. Falls
+  // back to a screen share's own audio when there's no dedicated mic source.
   useEffect(() => {
     if (!streaming) return
-    const audioSource = sources.find((s) => s.type === 'audio')
-    replaceAudioTrack(audioSource ? audioSource.stream.getAudioTracks()[0] : null)
+    replaceAudioTrack(getBroadcastAudioTrack(sources))
   }, [sources, streaming])
 
   useEffect(() => {
@@ -656,12 +667,11 @@ export default function GoLiveStudio({ events }) {
       if (!activeCreds?.ivs_ready) return
     }
 
-    const audioSource = sources.find((s) => s.type === 'audio')
     await startBroadcast(
       pgmStream,
       activeCreds.stream_ingest_url,
       activeCreds.stream_key_value,
-      audioSource ? audioSource.stream.getAudioTracks()[0] : null
+      getBroadcastAudioTrack(sources)
     )
   }
 
