@@ -456,8 +456,10 @@ export default function GoLiveStudio({ events }) {
       await api.post(`/events/${selectedEventId}/reprovision-stream`, {})
       const fresh = await api.get(`/events/${selectedEventId}/stream-credentials`)
       setCreds(fresh)
+      return fresh
     } catch (err) {
       alert(err.message)
+      return null
     } finally {
       setReprovisioning(false)
     }
@@ -636,20 +638,23 @@ export default function GoLiveStudio({ events }) {
   // ─── Go live ────────────────────────────────────────────────────────────
 
   async function handleGoLive() {
-    if (!creds?.ivs_ready) {
-      alert('AWS IVS is not configured. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_REGION in your .env to enable live streaming.')
-      return
-    }
     const pgmStream = getPgmStream()
     if (!pgmStream || pgmStream.getVideoTracks().length === 0) {
       alert('Nothing on Program. Send a source to PGM first.')
       return
     }
+
+    let activeCreds = creds
+    if (!activeCreds?.ivs_ready) {
+      activeCreds = await handleReprovision()
+      if (!activeCreds?.ivs_ready) return
+    }
+
     const audioSource = sources.find((s) => s.type === 'audio')
     await startWhip(
       pgmStream,
-      creds.stream_ingest_url,
-      creds.stream_key_value,
+      activeCreds.stream_ingest_url,
+      activeCreds.stream_key_value,
       audioSource ? audioSource.stream.getAudioTracks()[0] : null
     )
   }
@@ -751,9 +756,10 @@ export default function GoLiveStudio({ events }) {
             ) : (
               <button
                 onClick={handleGoLive}
+                disabled={reprovisioning}
                 className="flex items-center gap-2 text-xs bg-purple-600 hover:bg-purple-700 text-white font-black px-4 py-2 rounded-xl transition-colors tracking-wide"
               >
-                ● GO LIVE
+                {reprovisioning ? 'SETTING UP…' : '● GO LIVE'}
               </button>
             )}
           </div>
