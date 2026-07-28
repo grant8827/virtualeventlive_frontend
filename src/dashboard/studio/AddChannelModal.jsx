@@ -7,6 +7,10 @@ const TYPES = [
   { id: 'audio', label: 'Audio Only', icon: '🎤' },
 ]
 
+// Must match the sentinel prefix in GoLiveStudio.jsx — marks a selection as
+// "use this screen share's audio" rather than a real MediaDevices deviceId.
+const SCREEN_AUDIO_PREFIX = 'screen:'
+
 // Live preview of a captured screen-share stream, shown before it's
 // committed as a channel.
 function ScreenPreview({ stream }) {
@@ -21,7 +25,7 @@ function ScreenPreview({ stream }) {
 // setup panel (label + a device picker or capture step) instead of a flat
 // list of buttons, so every type is configured and (where possible) previewed
 // before it's actually added.
-export default function AddChannelModal({ hasAudioSource, adding, onAddCamera, onAddScreen, onAddImage, onAddAudio, onClose }) {
+export default function AddChannelModal({ hasAudioSource, screenAudioSources, adding, onAddCamera, onAddScreen, onAddImage, onAddAudio, onClose }) {
   const [activeType, setActiveType] = useState('camera')
   const [label, setLabel] = useState('')
   const [videoDevices, setVideoDevices] = useState([])
@@ -249,6 +253,11 @@ export default function AddChannelModal({ hasAudioSource, adding, onAddCamera, o
                       {audioDevices.map((d, i) => (
                         <option key={d.deviceId || i} value={d.deviceId}>
                           {d.label || `Microphone ${i + 1}`}
+                        </option>
+                      ))}
+                      {screenAudioSources.map((s) => (
+                        <option key={s.id} value={`${SCREEN_AUDIO_PREFIX}${s.id}`}>
+                          🖥 {s.label} Audio
                         </option>
                       ))}
                     </select>

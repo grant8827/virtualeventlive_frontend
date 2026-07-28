@@ -12,6 +12,10 @@ const STUDIO_CHANNELS_KEY = 'studio-channels'
 const SOURCE_ICONS = { camera: '📷', screen: '🖥', image: '🖼', audio: '🎤' }
 const SOURCE_OFFLINE_LABELS = { camera: 'WEBCAM OFFLINE', screen: 'SCREEN SHARE', image: 'LOADING IMAGE…', audio: 'AUDIO ONLY' }
 
+// Sentinel prefix marking an audio-device selection as "use this screen
+// share's audio" rather than a real MediaDevices deviceId.
+const SCREEN_AUDIO_PREFIX = 'screen:'
+
 // The dedicated "Audio Only" mic source always wins when present. Otherwise,
 // fall back to a screen share's own audio track (e.g. a shared tab playing
 // music/video) — only Chrome/Edge actually populate that track, and only
@@ -67,7 +71,7 @@ function AudioLevelMeter({ stream }) {
 }
 
 // ─── Per-channel input card with its own mini preview ────────────────────────
-function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPgm, onSwitchAudioDevice, onRemove }) {
+function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPgm, onSwitchAudioDevice, onRemove, screenAudioSources }) {
   const canvasRef = useRef(null)
   const videoRef = useRef(null)
   const rafRef = useRef(null)
@@ -201,19 +205,30 @@ function ChannelCard({ source, number, isInPvw, isInPgm, onSendToPvw, onSendToPg
                 ⚙
               </button>
               {showDeviceMenu && (
-                <div className="absolute bottom-full right-0 mb-1 z-20 bg-gray-900 border border-gray-700 rounded-lg p-1 w-40 shadow-xl max-h-40 overflow-y-auto">
-                  {devices.length === 0 ? (
+                <div className="absolute bottom-full right-0 mb-1 z-20 bg-gray-900 border border-gray-700 rounded-lg p-1 w-44 shadow-xl max-h-48 overflow-y-auto">
+                  {devices.length === 0 && screenAudioSources.length === 0 ? (
                     <p className="text-[10px] text-gray-600 px-2 py-1.5">No inputs found</p>
                   ) : (
-                    devices.map((d, i) => (
-                      <button
-                        key={d.deviceId || i}
-                        onClick={() => { setShowDeviceMenu(false); onSwitchAudioDevice(source.id, d.deviceId) }}
-                        className="w-full text-left text-[10px] text-gray-300 hover:bg-gray-800 hover:text-white px-2 py-1.5 rounded truncate"
-                      >
-                        {d.label || `Microphone ${i + 1}`}
-                      </button>
-                    ))
+                    <>
+                      {devices.map((d, i) => (
+                        <button
+                          key={d.deviceId || i}
+                          onClick={() => { setShowDeviceMenu(false); onSwitchAudioDevice(source.id, d.deviceId) }}
+                          className="w-full text-left text-[10px] text-gray-300 hover:bg-gray-800 hover:text-white px-2 py-1.5 rounded truncate"
+                        >
+                          {d.label || `Microphone ${i + 1}`}
+                        </button>
+                      ))}
+                      {screenAudioSources.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => { setShowDeviceMenu(false); onSwitchAudioDevice(source.id, `${SCREEN_AUDIO_PREFIX}${s.id}`) }}
+                          className="w-full text-left text-[10px] text-gray-300 hover:bg-gray-800 hover:text-white px-2 py-1.5 rounded truncate"
+                        >
+                          🖥 {s.label} Audio
+                        </button>
+                      ))}
+                    </>
                   )}
                 </div>
               )}
@@ -565,6 +580,20 @@ export default function GoLiveStudio({ events }) {
     }
   }
 
+  // A screen share's audio is borrowed, not owned — selecting it as the
+  // Audio Only source must never stop the underlying track, since that track
+  // still belongs to (and is needed by) the live screen-share channel.
+  function resolveAudioInput(deviceId) {
+    if (deviceId?.startsWith(SCREEN_AUDIO_PREFIX)) {
+      const screenId = deviceId.slice(SCREEN_AUDIO_PREFIX.length)
+      const screenSource = sources.find((s) => s.id === screenId)
+      const track = screenSource?.stream.getAudioTracks()[0]
+      if (!track) return null
+      return { stream: new MediaStream([track]), borrowedTrack: true, label: `${screenSource.label} Audio` }
+    }
+    return null
+  }
+
   // Audio is capped at one channel — it isn't part of the PVW/PGM switcher at
   // all, it's a standalone mic input that's always the broadcast's live audio
   // (see the sources-watching effect below), so there's never a second one to mix.
@@ -572,12 +601,18 @@ export default function GoLiveStudio({ events }) {
     if (sources.some((s) => s.type === 'audio')) return
     setAdding('audio')
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-        video: false,
-      })
-      const label = customLabel?.trim() || 'Main Audio Source'
-      setSources((p) => [...p, { id: crypto.randomUUID(), label, stream, type: 'audio', deviceId: deviceId || null }])
+      const borrowed = resolveAudioInput(deviceId)
+      const stream = borrowed
+        ? borrowed.stream
+        : await navigator.mediaDevices.getUserMedia({
+            audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+            video: false,
+          })
+      const label = customLabel?.trim() || borrowed?.label || 'Main Audio Source'
+      setSources((p) => [
+        ...p,
+        { id: crypto.randomUUID(), label, stream, type: 'audio', deviceId: deviceId || null, borrowedTrack: !!borrowed },
+      ])
     } catch (err) {
       if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
         alert('Microphone error: ' + err.message)
@@ -594,12 +629,17 @@ export default function GoLiveStudio({ events }) {
     const target = sources.find((s) => s.id === id)
     if (!target) return
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: deviceId } },
-        video: false,
-      })
-      target.stream.getTracks().forEach((t) => t.stop())
-      setSources((prev) => prev.map((s) => (s.id === id ? { ...s, stream: newStream } : s)))
+      const borrowed = resolveAudioInput(deviceId)
+      const newStream = borrowed
+        ? borrowed.stream
+        : await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: deviceId } },
+            video: false,
+          })
+      if (!target.borrowedTrack) target.stream.getTracks().forEach((t) => t.stop())
+      setSources((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, stream: newStream, borrowedTrack: !!borrowed } : s)),
+      )
     } catch (err) {
       alert('Could not switch microphone: ' + err.message)
     }
@@ -607,12 +647,13 @@ export default function GoLiveStudio({ events }) {
 
   // Releases the underlying device/capture (camera, mic, screen, or the
   // image's canvas track) and clears whichever bus it was occupying, same as
-  // unplugging a physical source.
+  // unplugging a physical source. A borrowed screen-audio track is never
+  // stopped here — it's still owned by the screen-share channel it came from.
   function handleRemoveChannel(id) {
     const target = sources.find((s) => s.id === id)
     if (!target) return
 
-    target.stream.getTracks().forEach((t) => t.stop())
+    if (!target.borrowedTrack) target.stream.getTracks().forEach((t) => t.stop())
     if (target.type === 'image') {
       deleteImage(studioChannelImageKey(id)).catch(() => {})
     }
@@ -681,6 +722,7 @@ export default function GoLiveStudio({ events }) {
   }
 
   const hasAudioSource = sources.some((s) => s.type === 'audio')
+  const screenAudioSources = sources.filter((s) => s.type === 'screen' && s.stream.getAudioTracks().length > 0)
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -1024,6 +1066,7 @@ export default function GoLiveStudio({ events }) {
                 onSendToPgm={(stream, label) => setPgmSource(stream, label)}
                 onSwitchAudioDevice={handleSwitchAudioDevice}
                 onRemove={handleRemoveChannel}
+                screenAudioSources={screenAudioSources}
               />
             ))}
           </div>
@@ -1033,6 +1076,7 @@ export default function GoLiveStudio({ events }) {
       {showAddModal && (
         <AddChannelModal
           hasAudioSource={hasAudioSource}
+          screenAudioSources={screenAudioSources}
           adding={adding}
           onAddCamera={handleAddCamera}
           onAddScreen={handleAddScreen}

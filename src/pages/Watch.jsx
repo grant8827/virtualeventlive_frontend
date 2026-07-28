@@ -178,6 +178,7 @@ export default function Watch() {
                 autoPlay
                 playsInline
                 className="w-full h-full"
+                style={{width: '100%', height: '100%', objectFit: 'contain'}}
               />
             </div>
           ) : (

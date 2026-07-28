@@ -59,12 +59,17 @@ export function useIvsBroadcast() {
       })
       clientRef.current = client
 
+      // Size the input to the broadcast canvas's actual dimensions (1920x1080
+      // for STANDARD_LANDSCAPE) rather than assuming 1280x720 — a mismatch
+      // here leaves the rest of the frame black, with the composited video
+      // only filling that smaller top-left region.
+      const {width: canvasWidth, height: canvasHeight} = client.getCanvasDimensions()
       await client.addVideoInputDevice(canvasStream, VIDEO_INPUT, {
         index: 0,
         x: 0,
         y: 0,
-        width: 1280,
-        height: 720,
+        width: canvasWidth,
+        height: canvasHeight,
       })
 
       const audioTrack = initialAudioTrack || getSilentTrack()
