@@ -20,6 +20,9 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('golive')
   const [events, setEvents] = useState([])
   const [eventsLoading, setEventsLoading] = useState(true)
+  const [eventToDelete, setEventToDelete] = useState(null)
+  const [eventDeleting, setEventDeleting] = useState(false)
+  const [eventDeleteError, setEventDeleteError] = useState('')
 
   // Event creation form state
   const [form, setForm] = useState({
@@ -352,6 +355,30 @@ export default function DashboardPage() {
       }
     } catch (err) {
       alert(err.message)
+    }
+  }
+
+  function requestEventDelete(event) {
+    setEventDeleteError('')
+    setEventToDelete(event)
+  }
+
+  async function confirmEventDelete() {
+    if (!eventToDelete) return
+    setEventDeleting(true)
+    setEventDeleteError('')
+    try {
+      await api.del(`/events/${eventToDelete.id}`)
+      await Promise.allSettled([
+        deleteImage(imgKey(eventToDelete.id)),
+        deleteImage(adImgKey(eventToDelete.id)),
+      ])
+      setEvents((current) => current.filter((event) => event.id !== eventToDelete.id))
+      setEventToDelete(null)
+    } catch (err) {
+      setEventDeleteError(err.message || 'Unable to delete event')
+    } finally {
+      setEventDeleting(false)
     }
   }
 
@@ -853,6 +880,7 @@ export default function DashboardPage() {
                 const starts = new Date(ev.starts_at)
                 const ends = ev.ends_at ? new Date(ev.ends_at) : null
                 const hours = ends ? Math.ceil((ends - starts) / 3600000) : null
+                const isUpcoming = starts.getTime() > Date.now()
 
                 return (
                   <div key={ev.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
@@ -908,6 +936,14 @@ export default function DashboardPage() {
                             className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
                           >
                             Pay ${ev.venue_fee.toFixed(2)} to Activate
+                          </button>
+                        )}
+                        {isUpcoming && (
+                          <button
+                            onClick={() => requestEventDelete(ev)}
+                            className="text-sm border border-red-800 bg-red-950/50 hover:bg-red-900 text-red-400 hover:text-red-200 px-4 py-2 rounded-xl transition-colors font-semibold"
+                          >
+                            Delete
                           </button>
                         )}
                       </div>
@@ -1600,6 +1636,50 @@ export default function DashboardPage() {
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {eventToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !eventDeleting) setEventToDelete(null)
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-red-900 bg-gray-900 p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-950 text-2xl">⚠️</div>
+            <h2 className="text-center text-xl font-bold text-white">Delete upcoming event?</h2>
+            <p className="mt-2 text-center text-sm text-gray-400">
+              You are about to permanently delete <span className="font-semibold text-white">{eventToDelete.title}</span>.
+            </p>
+            <div className="mt-5 rounded-xl border border-red-900/70 bg-red-950/30 p-4 text-sm text-red-200">
+              <p className="font-semibold">This cannot be undone:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-red-300/90">
+                <li>All issued tickets and access codes will stop working.</li>
+                <li>Ticket records, earnings entries, and flyers will be deleted.</li>
+                <li>Venue fees and ticket payments are not automatically refunded.</li>
+              </ul>
+            </div>
+            {eventDeleteError && <p className="mt-4 text-sm text-red-400">{eventDeleteError}</p>}
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={eventDeleting}
+                onClick={() => setEventToDelete(null)}
+                className="flex-1 rounded-xl border border-gray-700 bg-gray-800 py-3 font-semibold text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+              >
+                Keep Event
+              </button>
+              <button
+                type="button"
+                disabled={eventDeleting}
+                onClick={confirmEventDelete}
+                className="flex-1 rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {eventDeleting ? 'Deleting…' : 'Delete Permanently'}
+              </button>
+            </div>
           </div>
         </div>
       )}
