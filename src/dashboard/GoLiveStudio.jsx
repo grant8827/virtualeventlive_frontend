@@ -465,6 +465,23 @@ export default function GoLiveStudio({ events }) {
     replaceAudioTrack(getBroadcastAudioTrack(sources))
   }, [sources, streaming])
 
+  // A screen share's audio track can end at any moment — the tab gets
+  // closed, the host clicks "Stop sharing", etc. Without this, the Audio
+  // Only channel using it would just go silent with no explanation and no
+  // way to know from the UI. Removing it here also lets the priority
+  // fallback in getBroadcastAudioTrack pick up a mic source if one exists.
+  useEffect(() => {
+    const audioSource = sources.find((s) => s.type === 'audio' && s.borrowedTrack)
+    const track = audioSource?.stream.getAudioTracks()[0]
+    if (!track) return
+    function handleEnded() {
+      alert(`"${audioSource.label}" ended — its screen share was closed or stopped sharing. Re-add it from the current screen share once it's sharing again.`)
+      handleRemoveChannel(audioSource.id)
+    }
+    track.addEventListener('ended', handleEnded)
+    return () => track.removeEventListener('ended', handleEnded)
+  }, [sources])
+
   useEffect(() => {
     if (paidEvents.length > 0 && !selectedEventId) {
       setSelectedEventId(paidEvents[0].id)
@@ -609,9 +626,14 @@ export default function GoLiveStudio({ events }) {
   // (see the sources-watching effect below), so there's never a second one to mix.
   async function handleAddAudio(customLabel, deviceId) {
     if (sources.some((s) => s.type === 'audio')) return
+    const isScreenAudio = deviceId?.startsWith(SCREEN_AUDIO_PREFIX)
+    const borrowed = isScreenAudio ? resolveAudioInput(deviceId) : null
+    // resolveAudioInput already alerted why the screen-audio pick didn't work
+    // (ended track, share no longer present) — bail out rather than falling
+    // through to getUserMedia with that sentinel string as a bogus deviceId.
+    if (isScreenAudio && !borrowed) return
     setAdding('audio')
     try {
-      const borrowed = resolveAudioInput(deviceId)
       const stream = borrowed
         ? borrowed.stream
         : await navigator.mediaDevices.getUserMedia({
@@ -638,8 +660,10 @@ export default function GoLiveStudio({ events }) {
   async function handleSwitchAudioDevice(id, deviceId) {
     const target = sources.find((s) => s.id === id)
     if (!target) return
+    const isScreenAudio = deviceId?.startsWith(SCREEN_AUDIO_PREFIX)
+    const borrowed = isScreenAudio ? resolveAudioInput(deviceId) : null
+    if (isScreenAudio && !borrowed) return
     try {
-      const borrowed = resolveAudioInput(deviceId)
       const newStream = borrowed
         ? borrowed.stream
         : await navigator.mediaDevices.getUserMedia({
@@ -732,7 +756,9 @@ export default function GoLiveStudio({ events }) {
   }
 
   const hasAudioSource = sources.some((s) => s.type === 'audio')
-  const screenAudioSources = sources.filter((s) => s.type === 'screen' && s.stream.getAudioTracks().length > 0)
+  const screenAudioSources = sources.filter(
+    (s) => s.type === 'screen' && s.stream.getAudioTracks().some((t) => t.readyState === 'live'),
+  )
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
