@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { apiUrl } from '../api/url'
 import { mediaUrl } from '../api/url'
 
@@ -11,7 +11,7 @@ export default function Tickets() {
   const [myTickets, setMyTickets] = useState(null)
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupError, setLookupError] = useState('')
-  const [activePasskey, setActivePasskey] = useState(null)
+  const [showFindModal, setShowFindModal] = useState(false)
 
   useEffect(() => {
     fetch(apiUrl('/api/v1/events/public'))
@@ -31,6 +31,7 @@ export default function Tickets() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Lookup failed')
       setMyTickets(data.tickets || [])
+      setShowFindModal(false)
     } catch (err) {
       setLookupError(err.message)
     } finally {
@@ -41,38 +42,35 @@ export default function Tickets() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
 
-      {/* Find my tickets */}
-      <section className="bg-gray-900 border border-gray-800 rounded-2xl p-8 mb-16">
-        <h2 className="text-2xl font-bold mb-1">Find My Tickets</h2>
-        <p className="text-gray-400 text-sm mb-6">Enter the email you used to purchase tickets.</p>
+      <div className="flex items-start justify-between gap-4 mb-10">
+        <div>
+          <h1 className="text-4xl font-extrabold mb-2">Tickets</h1>
+          <p className="text-gray-400">Find your tickets or discover your next event.</p>
+        </div>
+        <button
+          onClick={() => { setLookupError(''); setShowFindModal(true) }}
+          className="shrink-0 bg-purple-600 hover:bg-purple-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-colors"
+        >
+          Find My Tickets
+        </button>
+      </div>
 
-        <form onSubmit={handleLookup} className="flex gap-3 mb-6">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="your@email.com"
-            required
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
-          />
-          <button
-            type="submit"
-            disabled={lookupLoading}
-            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-semibold transition-colors whitespace-nowrap"
-          >
-            {lookupLoading ? '…' : 'Look Up'}
-          </button>
-        </form>
-
-        {lookupError && <p className="text-red-400 text-sm mb-4">{lookupError}</p>}
-
-        {myTickets !== null && <TicketList tickets={myTickets} onViewCode={setActivePasskey} />}
-      </section>
+      {myTickets !== null && (
+        <section className="mb-14">
+          {myTickets.length === 0 ? (
+            <p className="text-gray-500 text-center py-10">No tickets found.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {myTickets.map((ticket) => <TicketStub key={ticket.id} ticket={ticket} />)}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Browse events */}
       <section>
         <div className="mb-8">
-          <h1 className="text-4xl font-extrabold mb-2">Upcoming Events</h1>
+          <h2 className="text-3xl font-extrabold mb-2">Upcoming Events</h2>
           <p className="text-gray-400">Get your tickets before they sell out.</p>
         </div>
 
@@ -104,8 +102,15 @@ export default function Tickets() {
         )}
       </section>
 
-      {activePasskey && (
-        <PasskeyModal passkey={activePasskey} onClose={() => setActivePasskey(null)} />
+      {showFindModal && (
+        <FindTicketsModal
+          email={email}
+          setEmail={setEmail}
+          loading={lookupLoading}
+          error={lookupError}
+          onSubmit={handleLookup}
+          onClose={() => setShowFindModal(false)}
+        />
       )}
     </div>
   )
@@ -172,114 +177,82 @@ function EventCard({ ev }) {
   )
 }
 
-function TicketList({ tickets, onViewCode }) {
-  if (tickets.length === 0) {
-    return <p className="text-gray-500 text-sm">No tickets found for that email address.</p>
-  }
+function TicketStub({ ticket }) {
+  const expired = ticket.event_expired
+  const image = mediaUrl(ticket.card_bg_image)
   return (
-    <div className="space-y-3">
-      {tickets.map((t) => (
-        <div key={t.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold truncate">{t.event_title}</p>
-            <p className="text-gray-400 text-sm mt-0.5">
-              {new Date(t.event_starts_at).toLocaleString('en-US', {
-                weekday: 'short', month: 'short', day: 'numeric',
-                hour: 'numeric', minute: '2-digit', hour12: true,
-              })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {t.event_expired ? (
-              <span className="text-xs bg-gray-800 border border-gray-700 text-gray-500 px-2.5 py-1 rounded-full whitespace-nowrap">
-                Ended
-              </span>
-            ) : (
-              t.event_is_active && (
-                <Link
-                  to={`/events/${t.event_id}/watch?code=${encodeURIComponent(t.access_token)}`}
-                  className="text-xs bg-red-900 border border-red-700 text-red-300 px-2.5 py-1 rounded-full whitespace-nowrap"
-                >
-                  ● LIVE
-                </Link>
-              )
-            )}
-            <button
-              onClick={() => onViewCode(t.access_token)}
-              className="text-xs bg-purple-900 border border-purple-700 text-purple-300 hover:bg-purple-800 px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
-            >
-              View Code
-            </button>
-          </div>
+    <div className={`relative overflow-hidden bg-gray-900 border border-gray-800 rounded-2xl ${expired ? 'opacity-55' : ''}`}>
+      {image && (
+        <div className="h-28 bg-gray-800 flex items-center justify-center overflow-hidden">
+          <img src={image} alt="" className="w-full h-full object-contain" />
         </div>
-      ))}
+      )}
+      <div className="p-5 pb-4">
+        <p className="text-purple-400 text-[10px] font-black tracking-widest mb-2">{expired ? 'EXPIRED' : 'ADMIT ONE'}</p>
+        <h3 className="font-bold text-lg leading-snug line-clamp-2">{ticket.event_title}</h3>
+        <p className="text-gray-500 text-xs font-semibold mt-1">
+          {new Date(ticket.event_starts_at).toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', hour12: true,
+          })}
+        </p>
+      </div>
+      <div className="relative h-5 flex items-center">
+        <span className="absolute -left-2 w-4 h-4 rounded-full bg-black" />
+        <span className="w-full mx-3 border-t border-dashed border-gray-700" />
+        <span className="absolute -right-2 w-4 h-4 rounded-full bg-black" />
+      </div>
+      <div className="px-5 pt-2 pb-5">
+        <p className="text-gray-500 text-[10px] font-bold tracking-wider mb-1">ACCESS CODE</p>
+        <p className="font-mono text-purple-300 text-sm font-bold truncate mb-4" title={ticket.access_token}>{ticket.access_token}</p>
+        {!expired && (
+          <Link
+            to={`/events/${ticket.event_id}/watch?code=${encodeURIComponent(ticket.access_token)}`}
+            className="block text-center bg-red-900 hover:bg-red-800 text-white text-xs font-extrabold tracking-wider py-2.5 rounded-full transition-colors"
+          >
+            JOIN
+          </Link>
+        )}
+      </div>
     </div>
   )
 }
 
-function PasskeyModal({ passkey, onClose }) {
-  const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
-
+function FindTicketsModal({ email, setEmail, loading, error, onSubmit, onClose }) {
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  function copyCode() {
-    navigator.clipboard.writeText(passkey).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center">
-        <div className="w-14 h-14 rounded-full bg-purple-900/50 border border-purple-700 flex items-center justify-center mx-auto mb-5">
-          <svg className="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a3 3 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
-          </svg>
-        </div>
-
-        <h2 className="text-xl font-bold mb-1">Your Access Code</h2>
-        <p className="text-gray-400 text-sm mb-6">Use this code on the Home page → "Go to Event" to join the live stream.</p>
-
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 text-left">
-          <p className="font-mono text-white text-sm break-all leading-relaxed">{passkey}</p>
-        </div>
-
-        <div className="flex gap-2 mb-3">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-7 shadow-2xl">
+        <h2 className="text-xl font-bold mb-1">Find My Tickets</h2>
+        <p className="text-gray-400 text-sm mb-5">Enter the email used to purchase your tickets.</p>
+        <form onSubmit={onSubmit}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoFocus
+            required
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+          />
+          {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
           <button
-            onClick={copyCode}
-            className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white text-sm font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+            type="submit"
+            disabled={loading || !email.trim()}
+            className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl mt-4 transition-colors"
           >
-            {copied ? (
-              <><span className="text-green-400">✓</span><span className="text-green-400">Copied!</span></>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                </svg>
-                Copy Code
-              </>
-            )}
+            {loading ? 'Searching…' : 'Search for Tickets'}
           </button>
-          <button
-            onClick={() => { onClose(); navigate('/') }}
-            className="flex-1 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
-          >
-            Go to Event
-          </button>
-        </div>
-
-        <button onClick={onClose} className="text-gray-600 hover:text-gray-400 text-sm transition-colors">
-          Close
-        </button>
+        </form>
+        <button onClick={onClose} className="w-full text-gray-500 hover:text-gray-300 text-sm mt-4">Cancel</button>
       </div>
     </div>
   )
