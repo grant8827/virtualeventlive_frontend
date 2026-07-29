@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [eventToDelete, setEventToDelete] = useState(null)
   const [eventDeleting, setEventDeleting] = useState(false)
   const [eventDeleteError, setEventDeleteError] = useState('')
+  const [showEndedEvents, setShowEndedEvents] = useState(false)
 
   // Event creation form state
   const [form, setForm] = useState({
@@ -586,14 +587,17 @@ export default function DashboardPage() {
     },
     { tickets: 0, gross: 0, fees: 0, net: 0 }
   )
+  const currentEvents = events.filter((event) => !event.expired)
+  const activeEventCount = currentEvents.filter((event) => event.venue_paid).length
+  const endedEvents = events.filter((event) => event.expired)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Host Dashboard</h1>
         <p className="text-gray-500 text-sm mt-1">
-          {events.length} event{events.length !== 1 ? 's' : ''} ·{' '}
-          {events.filter((e) => e.venue_paid && !e.expired).length} active
+          {activeEventCount} active event{activeEventCount !== 1 ? 's' : ''}
+          {endedEvents.length > 0 && ` · ${endedEvents.length} ended`}
         </p>
       </div>
 
@@ -873,7 +877,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {events.map((ev) => {
+              {currentEvents.length === 0 && (
+                <div className="text-center py-12 border border-dashed border-gray-800 rounded-2xl">
+                  <p className="text-gray-500">No active events.</p>
+                </div>
+              )}
+
+              {[...currentEvents, ...(showEndedEvents ? endedEvents : [])].map((ev) => {
                 const gross = ev.ticket_count * ev.ticket_price
                 const platformFee = gross * 0.1
                 const net = gross * 0.9 - (ev.venue_paid ? ev.venue_fee : 0)
@@ -975,6 +985,18 @@ export default function DashboardPage() {
                   </div>
                 )
               })}
+
+              {endedEvents.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowEndedEvents((show) => !show)}
+                  className="w-full rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3 text-sm text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
+                >
+                  {showEndedEvents
+                    ? 'Hide ended events'
+                    : `Show ended events (${endedEvents.length})`}
+                </button>
+              )}
             </div>
           )}
         </div>
