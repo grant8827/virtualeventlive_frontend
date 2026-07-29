@@ -36,6 +36,10 @@ export default function ChatPanel({ eventId }) {
     ws.onmessage = (evt) => {
       try {
         const msg = JSON.parse(evt.data)
+        if (msg.type === 'delete') {
+          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+          return
+        }
         setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), msg])
       } catch {
         // ignore malformed frames
@@ -131,7 +135,9 @@ export default function ChatPanel({ eventId }) {
             <p key={m.id || i} className="text-gray-600 text-xs text-center italic">{m.text}</p>
           ) : (
             <p key={m.id || i} className="text-sm leading-relaxed break-words">
-              <span className="font-semibold text-purple-400">{m.name}: </span>
+              <span className={`font-semibold ${m.is_host ? 'text-amber-400' : 'text-purple-400'}`}>
+                {m.is_host && '👑 '}{m.name}:{' '}
+              </span>
               <span className="text-gray-200">{m.text}</span>
             </p>
           )

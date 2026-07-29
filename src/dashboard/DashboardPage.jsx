@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import GoLiveStudio from './GoLiveStudio'
+import ChatModeration from './ChatModeration'
 import TicketCard from '../components/TicketCard'
 import AdCard from '../components/AdCard'
 import { saveImage, getObjectURL, deleteImage, imgKey, adImgKey } from '../lib/imageStore'
@@ -10,6 +11,7 @@ const TABS = [
   { id: 'setup', label: 'Book Event' },
   { id: 'events', label: 'My Events' },
   { id: 'golive', label: '🔴 Go Live' },
+  { id: 'chat', label: '💬 Chat' },
   { id: 'tickets', label: 'Tickets/Flyer' },
   { id: 'payouts', label: 'Payouts' },
 ]
@@ -1004,6 +1006,9 @@ export default function DashboardPage() {
 
       {/* ── Go Live ── */}
       {activeTab === 'golive' && <GoLiveStudio events={events} />}
+
+      {/* ── Chat ── */}
+      {activeTab === 'chat' && <ChatModeration events={events} />}
 
       {/* ── Tickets / Flyer ── */}
       {activeTab === 'tickets' && (
