@@ -5,7 +5,7 @@ import GoLiveStudio from './GoLiveStudio'
 import ChatModeration from './ChatModeration'
 import TicketCard from '../components/TicketCard'
 import AdCard from '../components/AdCard'
-import { saveImage, getObjectURL, deleteImage, imgKey, adImgKey } from '../lib/imageStore'
+import { mediaUrl } from '../api/url'
 
 const TABS = [
   { id: 'setup', label: 'Book Event' },
@@ -372,10 +372,6 @@ export default function DashboardPage() {
     setEventDeleteError('')
     try {
       await api.del(`/events/${eventToDelete.id}`)
-      await Promise.allSettled([
-        deleteImage(imgKey(eventToDelete.id)),
-        deleteImage(adImgKey(eventToDelete.id)),
-      ])
       setEvents((current) => current.filter((event) => event.id !== eventToDelete.id))
       setEventToDelete(null)
     } catch (err) {
@@ -405,11 +401,12 @@ export default function DashboardPage() {
     card_bg_from: '#f43f5e',
     card_bg_to: '#4338ca',
     card_bg_image: '',
+    card_bg_image_ref: '',
   })
   const [ticketSaving, setTicketSaving] = useState(false)
   const [ticketMsg, setTicketMsg] = useState(null) // { ok, text }
   const [ads, setAds] = useState([])
-  const [adForm, setAdForm] = useState({ event_id: '', headline: '', body: '', image_url: '', cta_text: 'Get Tickets' })
+  const [adForm, setAdForm] = useState({ event_id: '', headline: '', body: '', image_url: '', image_ref: '', cta_text: 'Get Tickets' })
   const [adSaving, setAdSaving] = useState(false)
   const [adMsg, setAdMsg] = useState(null)
   const [editingAdId, setEditingAdId] = useState(null)
@@ -434,32 +431,36 @@ export default function DashboardPage() {
     const ev = events.find((e) => e.id === id)
     if (!ev) return
 
-    // Check IndexedDB for a previously uploaded image for this event
-    const objectURL = await getObjectURL(imgKey(id))
-
     setTicketForm({
       ticket_name: ev.title,
       ticket_price: ev.ticket_price > 0 ? ev.ticket_price.toString() : '',
       ticket_type: ev.ticket_type || 'Virtual Only',
-      bg_type: objectURL ? 'image' : 'gradient',
+      bg_type: ev.card_bg_image ? 'image' : 'gradient',
       card_bg_from: ev.card_bg_from || '#f43f5e',
       card_bg_to: ev.card_bg_to || '#4338ca',
-      card_bg_image: objectURL || '',
+      card_bg_image: mediaUrl(ev.card_bg_image),
+      card_bg_image_ref: ev.card_bg_image || '',
     })
   }
 
   async function handleImageFile(file) {
     if (!file || !selectedEventId) return
-    // Save blob to IndexedDB
-    await saveImage(imgKey(selectedEventId), file)
-    // Create object URL for live preview
-    const objectURL = URL.createObjectURL(file)
-    setTicketForm((f) => ({ ...f, card_bg_image: objectURL, bg_type: 'image' }))
+    try {
+      const data = await api.upload(`/events/${selectedEventId}/images/ticket`, file)
+      setTicketForm((f) => ({
+        ...f,
+        card_bg_image: `${mediaUrl(data.image_url)}?v=${Date.now()}`,
+        card_bg_image_ref: data.image_url,
+        bg_type: 'image',
+      }))
+    } catch (err) {
+      setTicketMsg({ ok: false, text: err.message })
+    }
   }
 
   async function handleRemoveImage() {
-    if (selectedEventId) await deleteImage(imgKey(selectedEventId))
-    setTicketForm((f) => ({ ...f, card_bg_image: '', bg_type: 'gradient' }))
+    if (selectedEventId) await api.del(`/events/${selectedEventId}/images/ticket`)
+    setTicketForm((f) => ({ ...f, card_bg_image: '', card_bg_image_ref: '', bg_type: 'gradient' }))
   }
 
   async function handleTicketSetup(e) {
@@ -475,7 +476,7 @@ export default function DashboardPage() {
         ticket_type: ticketForm.ticket_type || 'Virtual Only',
         card_bg_from: ticketForm.card_bg_from,
         card_bg_to: ticketForm.card_bg_to,
-        card_bg_image: '',  // image lives in IndexedDB, not the backend
+        card_bg_image: ticketForm.bg_type === 'image' ? ticketForm.card_bg_image_ref : '',
       })
       setTicketMsg({ ok: true, text: 'Ticket saved!' })
       fetchEvents()
@@ -491,36 +492,39 @@ export default function DashboardPage() {
     setAdMsg(null)
     const existing = ads.find((a) => a.event_id === id)
 
-    // Check IndexedDB for a previously uploaded flyer image for this event
-    const objectURL = await getObjectURL(adImgKey(id))
-
     if (existing) {
       setEditingAdId(existing.id)
       setAdForm({
         event_id: id,
         headline: existing.headline || '',
         body: existing.body || '',
-        image_url: objectURL || existing.image_url || '',
+        image_url: mediaUrl(existing.image_url),
+        image_ref: existing.image_url || '',
         cta_text: existing.cta_text || 'Get Tickets',
       })
     } else {
       setEditingAdId(null)
-      setAdForm({ event_id: id, headline: '', body: '', image_url: objectURL || '', cta_text: 'Get Tickets' })
+      setAdForm({ event_id: id, headline: '', body: '', image_url: '', image_ref: '', cta_text: 'Get Tickets' })
     }
   }
 
   async function handleAdImageFile(file) {
     if (!file || !adForm.event_id) return
-    // Save blob to IndexedDB — the flyer image lives on this device, not the backend
-    await saveImage(adImgKey(adForm.event_id), file)
-    // Create object URL for live preview
-    const objectURL = URL.createObjectURL(file)
-    setAdForm((f) => ({ ...f, image_url: objectURL }))
+    try {
+      const data = await api.upload(`/events/${adForm.event_id}/images/flyer`, file)
+      setAdForm((f) => ({
+        ...f,
+        image_url: `${mediaUrl(data.image_url)}?v=${Date.now()}`,
+        image_ref: data.image_url,
+      }))
+    } catch (err) {
+      setAdMsg({ ok: false, text: err.message })
+    }
   }
 
   async function handleRemoveAdImage() {
-    if (adForm.event_id) await deleteImage(adImgKey(adForm.event_id))
-    setAdForm((f) => ({ ...f, image_url: '' }))
+    if (adForm.event_id) await api.del(`/events/${adForm.event_id}/images/flyer`)
+    setAdForm((f) => ({ ...f, image_url: '', image_ref: '' }))
   }
 
   async function handleCreateAd(e) {
@@ -531,14 +535,12 @@ export default function DashboardPage() {
     }
     setAdSaving(true)
     setAdMsg(null)
-    // Local blob: URLs only exist in this tab — never send them to the backend
-    const remoteImageURL = adForm.image_url.startsWith('blob:') ? '' : adForm.image_url
     try {
       if (editingAdId) {
         await api.put(`/advertisements/${editingAdId}`, {
           headline: adForm.headline,
           body: adForm.body,
-          image_url: remoteImageURL,
+          image_url: adForm.image_ref,
           cta_text: adForm.cta_text || 'Get Tickets',
         })
         setAdMsg({ ok: true, text: 'Flyer updated!' })
@@ -547,7 +549,7 @@ export default function DashboardPage() {
           event_id: adForm.event_id,
           headline: adForm.headline,
           body: adForm.body,
-          image_url: remoteImageURL,
+          image_url: adForm.image_ref,
           cta_text: adForm.cta_text || 'Get Tickets',
         })
         setEditingAdId(data.id)
@@ -565,11 +567,11 @@ export default function DashboardPage() {
     try {
       const ad = ads.find((a) => a.id === id)
       await api.del(`/advertisements/${id}`)
-      if (ad?.event_id) await deleteImage(adImgKey(ad.event_id))
+      if (ad?.event_id) await api.del(`/events/${ad.event_id}/images/flyer`).catch(() => {})
       setAds((prev) => prev.filter((a) => a.id !== id))
       if (id === editingAdId) {
         setEditingAdId(null)
-        setAdForm((f) => ({ ...f, headline: '', body: '', image_url: '', cta_text: 'Get Tickets' }))
+        setAdForm((f) => ({ ...f, headline: '', body: '', image_url: '', image_ref: '', cta_text: 'Get Tickets' }))
       }
     } catch (err) {
       alert(err.message)
@@ -1711,27 +1713,8 @@ export default function DashboardPage() {
   )
 }
 
-// Flyer thumbnail for the "Your Ads" list — falls back to the image stored in this
-// browser's IndexedDB when the server has no image_url for the ad.
 function AdThumb({ ad }) {
-  const [localImage, setLocalImage] = useState(null)
-
-  useEffect(() => {
-    if (ad.image_url || !ad.event_id) return
-    let objectURL = null
-    let cancelled = false
-    getObjectURL(adImgKey(ad.event_id)).then((url) => {
-      if (cancelled) return
-      objectURL = url
-      setLocalImage(url)
-    })
-    return () => {
-      cancelled = true
-      if (objectURL) URL.revokeObjectURL(objectURL)
-    }
-  }, [ad.image_url, ad.event_id])
-
-  const img = ad.image_url || localImage
+  const img = mediaUrl(ad.image_url)
   if (!img) return null
 
   return (

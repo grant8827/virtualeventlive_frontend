@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getObjectURL, imgKey } from '../lib/imageStore'
 import { apiUrl } from '../api/url'
+import { mediaUrl } from '../api/url'
 
 export default function Tickets() {
   const [events, setEvents] = useState([])
@@ -114,26 +114,9 @@ export default function Tickets() {
 function EventCard({ ev }) {
   const bgFrom = ev.card_bg_from || '#7c3aed'
   const bgTo   = ev.card_bg_to   || '#1e1b4b'
-  const [localImage, setLocalImage] = useState(null)
-
-  // Ticket card images live in this browser's IndexedDB, not the backend —
-  // fall back to it so a host previewing their own site sees the image they uploaded.
-  useEffect(() => {
-    let objectURL = null
-    let cancelled = false
-    getObjectURL(imgKey(ev.id)).then((url) => {
-      if (cancelled) return
-      objectURL = url
-      setLocalImage(url)
-    })
-    return () => {
-      cancelled = true
-      if (objectURL) URL.revokeObjectURL(objectURL)
-    }
-  }, [ev.id])
-
-  const bgStyle = localImage
-    ? { backgroundImage: `url(${localImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  const image = mediaUrl(ev.card_bg_image)
+  const bgStyle = image
+    ? { backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundImage: `linear-gradient(to bottom right, ${bgFrom}, ${bgTo})` }
 
   const dateStr = new Date(ev.starts_at).toLocaleDateString('en-US', {

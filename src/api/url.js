@@ -8,6 +8,11 @@ export function apiUrl(path) {
   return `${API_ORIGIN}${path}`
 }
 
+export function mediaUrl(value) {
+  if (!value || value.startsWith('blob:') || /^https?:\/\//i.test(value)) return value || ''
+  return apiUrl(value.startsWith('/') ? value : `/${value}`)
+}
+
 export function apiWebSocketUrl(path) {
   if (!API_ORIGIN) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

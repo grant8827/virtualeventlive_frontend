@@ -1,27 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { getObjectURL, adImgKey } from '../lib/imageStore'
+import { mediaUrl } from '../api/url'
 
 export default function AdCard({ headline, body, image_url, cta_text, event_id }) {
   const to = event_id ? `/events/${event_id}` : null
-  const [localImage, setLocalImage] = useState(null)
   const [open, setOpen] = useState(false)
-
-  // Flyer images live in this browser's IndexedDB — fall back to it when no server URL was set
-  useEffect(() => {
-    if (image_url || !event_id) return
-    let objectURL = null
-    let cancelled = false
-    getObjectURL(adImgKey(event_id)).then((url) => {
-      if (cancelled) return
-      objectURL = url
-      setLocalImage(url)
-    })
-    return () => {
-      cancelled = true
-      if (objectURL) URL.revokeObjectURL(objectURL)
-    }
-  }, [image_url, event_id])
 
   useEffect(() => {
     if (!open) return
@@ -30,7 +13,7 @@ export default function AdCard({ headline, body, image_url, cta_text, event_id }
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const img = image_url || localImage
+  const img = mediaUrl(image_url)
 
   return (
     <>
