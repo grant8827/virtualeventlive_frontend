@@ -1184,7 +1184,7 @@ export default function DashboardPage() {
                             <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-xl px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <img src={ticketForm.card_bg_image} alt="" className="w-8 h-8 rounded object-cover" />
-                                <span className="text-xs text-gray-400">Image saved locally</span>
+                                <span className="text-xs text-gray-400">Image saved to cloud storage</span>
                               </div>
                               <button
                                 type="button"
@@ -1319,7 +1319,7 @@ export default function DashboardPage() {
                             <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-xl px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <img src={adForm.image_url} alt="" className="w-8 h-8 rounded object-cover" />
-                                <span className="text-xs text-gray-400">Image saved locally</span>
+                                  <span className="text-xs text-gray-400">Image saved to cloud storage</span>
                               </div>
                               <button
                                 type="button"
