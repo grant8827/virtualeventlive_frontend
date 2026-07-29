@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
 import { apiUrl } from '../api/url'
-import ActiveEventCard from '../components/ActiveEventCard'
+import AdCard from '../components/AdCard'
 
 export default function Home() {
-  const [events, setEvents] = useState([])
+  const [ads, setAds] = useState([])
   const [showEnterModal, setShowEnterModal] = useState(false)
 
   useEffect(() => {
-    fetch(apiUrl('/api/v1/events/public'))
-      .then((response) => response.json())
-      .then((data) => setEvents(data.events || []))
+    api.get('/advertisements')
+      .then((data) => setAds(data.ads || []))
       .catch(() => {})
   }, [])
 
@@ -86,15 +86,15 @@ export default function Home() {
       </section>
 
       {/* ── Featured Events ── */}
-      {events.length > 0 && (
+      {ads.length > 0 && (
         <section className="max-w-6xl mx-auto px-6 py-15">
           <div className="flex items-center gap-3 mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
             <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Featured Events</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {events.slice(0, 6).map((event) => (
-              <ActiveEventCard key={event.id} event={event} />
+            {ads.slice(0, 6).map((ad) => (
+              <AdCard key={ad.id} {...ad} />
             ))}
           </div>
           <div className="text-center mt-10">

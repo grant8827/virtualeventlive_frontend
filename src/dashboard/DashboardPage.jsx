@@ -1677,13 +1677,14 @@ export default function DashboardPage() {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-950 text-2xl">⚠️</div>
             <h2 className="text-center text-xl font-bold text-white">Remove this event?</h2>
             <p className="mt-2 text-center text-sm text-gray-400">
-              Do you want to permanently remove <span className="font-semibold text-white">{eventToDelete.title}</span> and its related tickets and event data?
+              Do you want to remove <span className="font-semibold text-white">{eventToDelete.title}</span> from My Events and public listings?
             </p>
             <div className="mt-5 rounded-xl border border-red-900/70 bg-red-950/30 p-4 text-sm text-red-200">
-              <p className="font-semibold">This cannot be undone:</p>
+              <p className="font-semibold">The event will be closed:</p>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-red-300/90">
-                <li>All issued tickets and access codes will stop working.</li>
-                <li>Ticket records, earnings entries, and flyers will be deleted.</li>
+                <li>Issued tickets and financial records will be preserved.</li>
+                <li>Access codes will no longer grant event entry.</li>
+                <li>The event flyer will be removed from public listings.</li>
                 <li>Venue fees and ticket payments are not automatically refunded.</li>
               </ul>
             </div>
@@ -1703,7 +1704,7 @@ export default function DashboardPage() {
                 onClick={confirmEventDelete}
                 className="flex-1 rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
-                {eventDeleting ? 'Deleting…' : 'Delete Permanently'}
+                {eventDeleting ? 'Removing…' : 'Remove Event'}
               </button>
             </div>
           </div>

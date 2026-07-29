@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
-import ActiveEventCard from '../components/ActiveEventCard'
-import { apiUrl } from '../api/url'
+import { api } from '../api/client'
+import AdCard from '../components/AdCard'
 
 export default function Events() {
-  const [events, setEvents] = useState([])
+  const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(apiUrl('/api/v1/events/public'))
-      .then((response) => response.json())
-      .then((data) => setEvents(data.events || []))
-      .catch(() => {})
+    api.get('/advertisements')
+      .then((data) => setAds(data.ads || []))
+      .catch((err) => setError(err.message || 'Unable to load events.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -34,7 +34,12 @@ export default function Events() {
             </div>
           ))}
         </div>
-      ) : events.length === 0 ? (
+      ) : error ? (
+        <div className="text-center py-20 border border-red-900/50 rounded-2xl">
+          <p className="text-red-400 text-lg font-medium mb-1">Events could not be loaded</p>
+          <p className="text-gray-500 text-sm">{error}</p>
+        </div>
+      ) : ads.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-gray-800 rounded-2xl">
           <div className="text-5xl mb-4">🎟️</div>
           <p className="text-gray-400 text-lg font-medium mb-1">No active events</p>
@@ -42,8 +47,8 @@ export default function Events() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {events.map((event) => (
-            <ActiveEventCard key={event.id} event={event} />
+          {ads.map((ad) => (
+            <AdCard key={ad.id} {...ad} />
           ))}
         </div>
       )}
