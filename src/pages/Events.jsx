@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
-import { api } from '../api/client'
-import AdCard from '../components/AdCard'
+import ActiveEventCard from '../components/ActiveEventCard'
+import { apiUrl } from '../api/url'
 
 export default function Events() {
-  const [ads, setAds] = useState([])
+  const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/advertisements')
-      .then((d) => setAds(d.ads || []))
+    fetch(apiUrl('/api/v1/events/public'))
+      .then((response) => response.json())
+      .then((data) => setEvents(data.events || []))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -33,16 +34,16 @@ export default function Events() {
             </div>
           ))}
         </div>
-      ) : ads.length === 0 ? (
+      ) : events.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-gray-800 rounded-2xl">
-          <div className="text-5xl mb-4">📣</div>
-          <p className="text-gray-400 text-lg font-medium mb-1">No event advertisements yet</p>
-          <p className="text-gray-600 text-sm">Check back soon — new events are promoted here regularly.</p>
+          <div className="text-5xl mb-4">🎟️</div>
+          <p className="text-gray-400 text-lg font-medium mb-1">No active events</p>
+          <p className="text-gray-600 text-sm">Check back soon—new events are added regularly.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {ads.map((ad) => (
-            <AdCard key={ad.id} {...ad} />
+          {events.map((event) => (
+            <ActiveEventCard key={event.id} event={event} />
           ))}
         </div>
       )}
