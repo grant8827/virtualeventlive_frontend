@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { api } from '../api/client'
 import { apiWebSocketUrl } from '../api/url'
 
 const MAX_MESSAGES = 150
-const NAME_KEY = 'vel-chat-name'
+const IDENTITY_KEY_PREFIX = 'vel-chat-identity-'
 
 const EMOJIS = [
   '😀', '😂', '😅', '😍', '🥰', '😎', '🤔', '😮',
@@ -11,9 +12,30 @@ const EMOJIS = [
   '🔥', '🎉', '💯', '⭐', '✨', '🎊', '👀', '🚀',
 ]
 
+function loadIdentity(eventId) {
+  try {
+    const raw = localStorage.getItem(IDENTITY_KEY_PREFIX + eventId)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveIdentity(eventId, identity) {
+  localStorage.setItem(IDENTITY_KEY_PREFIX + eventId, JSON.stringify(identity))
+}
+
+function clearIdentity(eventId) {
+  localStorage.removeItem(IDENTITY_KEY_PREFIX + eventId)
+}
+
 export default function ChatPanel({ eventId }) {
-  const [name, setName] = useState(() => localStorage.getItem(NAME_KEY) || '')
+  const [identity, setIdentity] = useState(() => loadIdentity(eventId))
   const [nameDraft, setNameDraft] = useState('')
+  const [emailDraft, setEmailDraft] = useState('')
+  const [chatNameDraft, setChatNameDraft] = useState('')
+  const [registering, setRegistering] = useState(false)
+  const [registerError, setRegisterError] = useState('')
   const [messages, setMessages] = useState([])
   const [draft, setDraft] = useState('')
   const [connected, setConnected] = useState(false)
@@ -24,9 +46,11 @@ export default function ChatPanel({ eventId }) {
   const emojiRef = useRef(null)
 
   useEffect(() => {
-    if (!name || !eventId) return
+    if (!identity || !eventId) return
 
-    const url = apiWebSocketUrl(`/api/v1/events/${eventId}/chat/ws?name=${encodeURIComponent(name)}`)
+    const url = apiWebSocketUrl(
+      `/api/v1/events/${eventId}/chat/ws?chat_token=${encodeURIComponent(identity.chat_token)}`,
+    )
     const ws = new WebSocket(url)
     wsRef.current = ws
 
@@ -40,6 +64,15 @@ export default function ChatPanel({ eventId }) {
           setMessages((prev) => prev.filter((m) => m.id !== msg.id))
           return
         }
+        // The backend rejects an invalid/expired chat_token with this exact
+        // notice and then closes the socket — clear the stale identity so
+        // the registration form comes back instead of silently reconnecting
+        // forever.
+        if (msg.type === 'system' && msg.text?.includes('register with a valid ticket')) {
+          clearIdentity(eventId)
+          setIdentity(null)
+          return
+        }
         setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), msg])
       } catch {
         // ignore malformed frames
@@ -47,7 +80,7 @@ export default function ChatPanel({ eventId }) {
     }
 
     return () => ws.close()
-  }, [eventId, name])
+  }, [eventId, identity])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
@@ -67,12 +100,29 @@ export default function ChatPanel({ eventId }) {
     }
   }, [showEmoji])
 
-  function handleJoin(e) {
+  async function handleRegister(e) {
     e.preventDefault()
-    const trimmed = nameDraft.trim()
-    if (!trimmed) return
-    localStorage.setItem(NAME_KEY, trimmed)
-    setName(trimmed)
+    const name = nameDraft.trim()
+    const email = emailDraft.trim()
+    const chatName = chatNameDraft.trim()
+    if (!name || !email || !chatName) return
+
+    setRegistering(true)
+    setRegisterError('')
+    try {
+      const res = await api.post(`/events/${eventId}/chat/register`, {
+        name,
+        email,
+        chat_name: chatName,
+      })
+      const newIdentity = { chat_token: res.chat_token, chat_name: res.chat_name }
+      saveIdentity(eventId, newIdentity)
+      setIdentity(newIdentity)
+    } catch (err) {
+      setRegisterError(err.message)
+    } finally {
+      setRegistering(false)
+    }
   }
 
   function handleSend(e) {
@@ -89,27 +139,49 @@ export default function ChatPanel({ eventId }) {
     inputRef.current?.focus()
   }
 
-  if (!name) {
+  if (!identity) {
     return (
       <div className="h-full flex flex-col bg-gray-900 border border-gray-800 rounded-2xl p-5">
         <h3 className="font-semibold mb-1">Live Chat</h3>
-        <p className="text-gray-500 text-sm mb-4">Pick a name to join the conversation.</p>
-        <form onSubmit={handleJoin} className="flex gap-2">
+        <p className="text-gray-500 text-sm mb-4">
+          Join with your ticket email to chat — this only works if you have a ticket for this event.
+        </p>
+        <form onSubmit={handleRegister} className="space-y-2.5">
+          {registerError && (
+            <p className="text-red-400 text-xs bg-red-950 border border-red-800 rounded-lg px-3 py-2">
+              {registerError}
+            </p>
+          )}
           <input
             autoFocus
             type="text"
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
             placeholder="Your name"
+            maxLength={100}
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+          />
+          <input
+            type="email"
+            value={emailDraft}
+            onChange={(e) => setEmailDraft(e.target.value)}
+            placeholder="Email used for your ticket"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+          />
+          <input
+            type="text"
+            value={chatNameDraft}
+            onChange={(e) => setChatNameDraft(e.target.value)}
+            placeholder="Chat display name"
             maxLength={32}
-            className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
           />
           <button
             type="submit"
-            disabled={!nameDraft.trim()}
-            className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
+            disabled={registering || !nameDraft.trim() || !emailDraft.trim() || !chatNameDraft.trim()}
+            className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
-            Join
+            {registering ? 'Joining…' : 'Join Chat'}
           </button>
         </form>
       </div>
