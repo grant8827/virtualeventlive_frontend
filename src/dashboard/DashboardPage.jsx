@@ -22,10 +22,13 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('golive')
   const [events, setEvents] = useState([])
   const [eventsLoading, setEventsLoading] = useState(true)
+  const [showEventArchive, setShowEventArchive] = useState(false)
+  const [archivedEvents, setArchivedEvents] = useState([])
+  const [archiveLoading, setArchiveLoading] = useState(false)
+  const [archiveError, setArchiveError] = useState('')
   const [eventToDelete, setEventToDelete] = useState(null)
   const [eventDeleting, setEventDeleting] = useState(false)
   const [eventDeleteError, setEventDeleteError] = useState('')
-  const [showEndedEvents, setShowEndedEvents] = useState(false)
 
   // Event creation form state
   const [form, setForm] = useState({
@@ -214,6 +217,21 @@ export default function DashboardPage() {
       setEvents([])
     } finally {
       setEventsLoading(false)
+    }
+  }
+
+  async function openEventArchive() {
+    setShowEventArchive(true)
+    setArchiveLoading(true)
+    setArchiveError('')
+    try {
+      const data = await api.get('/events?archive=true')
+      setArchivedEvents(data.events || [])
+    } catch (err) {
+      setArchivedEvents([])
+      setArchiveError(err.message || 'Unable to load event archive.')
+    } finally {
+      setArchiveLoading(false)
     }
   }
 
@@ -593,7 +611,6 @@ export default function DashboardPage() {
   )
   const currentEvents = events.filter((event) => !event.expired)
   const activeEventCount = currentEvents.filter((event) => event.venue_paid).length
-  const endedEvents = events.filter((event) => event.expired)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -601,7 +618,6 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Host Dashboard</h1>
         <p className="text-gray-500 text-sm mt-1">
           {activeEventCount} active event{activeEventCount !== 1 ? 's' : ''}
-          {endedEvents.length > 0 && ` · ${endedEvents.length} ended`}
         </p>
       </div>
 
@@ -859,12 +875,21 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold">My Events</h2>
-            <button
-              onClick={() => setActiveTab('setup')}
-              className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
-            >
-              + Book New Event
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openEventArchive}
+                className="text-sm border border-gray-700 bg-gray-900 hover:bg-gray-800 text-gray-300 px-4 py-2 rounded-xl transition-colors font-medium"
+              >
+                Archive
+              </button>
+              <button
+                onClick={() => setActiveTab('setup')}
+                className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-colors font-medium"
+              >
+                + Book New Event
+              </button>
+            </div>
           </div>
 
           {eventsLoading ? (
@@ -887,7 +912,7 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {[...currentEvents, ...(showEndedEvents ? endedEvents : [])].map((ev) => {
+              {currentEvents.map((ev) => {
                 const gross = ev.ticket_count * ev.ticket_price
                 const platformFee = gross * 0.1
                 const net = gross * 0.9 - (ev.venue_paid ? ev.venue_fee : 0)
@@ -990,19 +1015,71 @@ export default function DashboardPage() {
                 )
               })}
 
-              {endedEvents.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowEndedEvents((show) => !show)}
-                  className="w-full rounded-xl border border-gray-800 bg-gray-900/60 px-4 py-3 text-sm text-gray-400 transition-colors hover:border-gray-700 hover:text-gray-200"
-                >
-                  {showEndedEvents
-                    ? 'Hide ended events'
-                    : `Show ended events (${endedEvents.length})`}
-                </button>
-              )}
             </div>
           )}
+        </div>
+      )}
+
+      {showEventArchive && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/85 px-4 py-8"
+          onClick={(event) => { if (event.target === event.currentTarget) setShowEventArchive(false) }}
+        >
+          <div className="mx-auto w-full max-w-5xl rounded-2xl border border-gray-700 bg-gray-950 p-6 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">Event Archive</h2>
+                <p className="mt-1 text-sm text-gray-500">Past and removed events with their historical ticket and earnings totals.</p>
+              </div>
+              <button onClick={() => setShowEventArchive(false)} className="text-gray-500 hover:text-white">✕</button>
+            </div>
+
+            {archiveLoading ? (
+              <p className="py-12 text-center text-sm text-gray-500">Loading archive…</p>
+            ) : archiveError ? (
+              <p className="py-12 text-center text-sm text-red-400">{archiveError}</p>
+            ) : archivedEvents.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-800 py-14 text-center text-gray-500">No past events yet.</div>
+            ) : (
+              <div className="space-y-5">
+                {archivedEvents.map((ev) => {
+                  const gross = ev.ticket_count * ev.ticket_price
+                  const platformFee = gross * 0.1
+                  const net = gross * 0.9 - (ev.venue_paid ? ev.venue_fee : 0)
+                  const starts = new Date(ev.starts_at)
+                  const ends = ev.ends_at ? new Date(ev.ends_at) : null
+                  return (
+                    <div key={ev.id} className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 opacity-85">
+                      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-800 px-6 py-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-bold">{ev.title}</h3>
+                            <span className="rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-500">Archived</span>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {starts.toLocaleString()}{ends ? ` → ${ends.toLocaleString()}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 divide-x divide-y divide-gray-800 md:grid-cols-4 md:divide-y-0">
+                        {[
+                          { label: 'Tickets Sold', value: ev.ticket_count.toString() },
+                          { label: 'Gross Revenue', value: `$${gross.toFixed(2)}` },
+                          { label: 'Platform Fee', value: `$${platformFee.toFixed(2)}` },
+                          { label: 'Net Earnings', value: `$${Math.max(0, net).toFixed(2)}` },
+                        ].map((stat) => (
+                          <div key={stat.label} className="px-5 py-4">
+                            <p className="text-xl font-bold text-gray-300">{stat.value}</p>
+                            <p className="text-xs text-gray-600">{stat.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
