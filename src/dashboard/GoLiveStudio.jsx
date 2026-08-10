@@ -16,6 +16,23 @@ const SOURCE_OFFLINE_LABELS = { camera: 'WEBCAM OFFLINE', screen: 'SCREEN SHARE'
 // share's audio" rather than a real MediaDevices deviceId.
 const SCREEN_AUDIO_PREFIX = 'screen:'
 
+// getUserMedia's DOMException names map to specific, common real-world
+// causes — surface those instead of a generic "failed" so the host knows
+// whether to grant a permission, plug something in, or close another app.
+function describeRestoreFailure(err) {
+  switch (err?.name) {
+    case 'NotAllowedError':
+      return 'permission was denied — grant camera/mic access to reconnect it'
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'that device is no longer available'
+    case 'NotReadableError':
+      return 'the device is in use by another app'
+    default:
+      return "it couldn't be reconnected automatically"
+  }
+}
+
 function getLiveAudioTrack(stream) {
   return stream
     ?.getAudioTracks()
@@ -291,6 +308,7 @@ export default function GoLiveStudio({ events }) {
   const [reprovisioning, setReprovisioning] = useState(false)
 
   const [sources, setSources] = useState([])
+  const [restoreErrors, setRestoreErrors] = useState([])
   const restoredChannelsRef = useRef(false)
 
   // Restore camera/audio/image channels from a previous session on mount.
@@ -316,6 +334,8 @@ export default function GoLiveStudio({ events }) {
         return
       }
 
+      const failures = []
+
       for (const entry of saved) {
         if (cancelled) return
         try {
@@ -335,16 +355,24 @@ export default function GoLiveStudio({ events }) {
             setSources((p) => [...p, { id: entry.id, label: entry.label, stream, type: 'audio', deviceId: entry.deviceId }])
           } else if (entry.type === 'image') {
             const blob = await getImage(studioChannelImageKey(entry.id))
-            if (!blob) continue
+            if (!blob) {
+              failures.push({ label: entry.label, reason: 'the saved image is missing' })
+              continue
+            }
             const img = await loadImageFile(blob)
             if (cancelled) return
             const stream = makeImageChannelStream(img)
             setSources((p) => [...p, { id: entry.id, label: entry.label, stream, type: 'image' }])
           }
-        } catch {
-          // device gone, permission revoked, blob missing — just skip that one channel
+        } catch (err) {
+          // Device gone, permission revoked, blob missing — skip that one
+          // channel, but say so instead of just quietly not showing it, so
+          // "my channels disappeared" has a visible, actionable reason.
+          failures.push({ label: entry.label, reason: describeRestoreFailure(err) })
         }
       }
+
+      if (!cancelled && failures.length > 0) setRestoreErrors(failures)
     }
     restore().finally(() => {
       if (!cancelled) restoredChannelsRef.current = true
@@ -871,6 +899,27 @@ export default function GoLiveStudio({ events }) {
         </div>
         {broadcastError && <p className="mt-2 text-[11px] text-red-400">⚠ {broadcastError}</p>}
       </div>
+
+      {restoreErrors.length > 0 && (
+        <div className="px-5 py-3 border-b border-gray-800 bg-amber-950/40 flex items-start justify-between gap-3">
+          <p className="text-[11px] text-amber-400 leading-relaxed">
+            ⚠ Couldn't restore {restoreErrors.length === 1 ? 'a channel' : `${restoreErrors.length} channels`} from your last session:{' '}
+            {restoreErrors.map((f, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                <strong>{f.label}</strong> ({f.reason})
+              </span>
+            ))}
+            . Use "+ Add Input Channel" to reconnect it.
+          </p>
+          <button
+            onClick={() => setRestoreErrors([])}
+            className="shrink-0 text-amber-500 hover:text-amber-300 text-xs leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ══ PVW / TRANSITIONS / PGM ══════════════════════════════════════════ */}
       <div
