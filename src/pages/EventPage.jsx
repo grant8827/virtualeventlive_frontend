@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { apiUrl } from '../api/url'
 
@@ -9,7 +9,6 @@ export default function EventPage() {
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showBuyModal, setShowBuyModal] = useState(false)
-  const [passkey, setPasskey] = useState(null) // set when bypass ticket created
 
   useEffect(() => {
     api.get(`/events/${id}`)
@@ -87,25 +86,14 @@ export default function EventPage() {
           eventId={id}
           eventTitle={event.title}
           onClose={() => setShowBuyModal(false)}
-          onPasskey={(token) => {
-            setShowBuyModal(false)
-            setPasskey(token)
-          }}
-        />
-      )}
-
-      {passkey && (
-        <PasskeyModal
-          passkey={passkey}
-          eventId={id}
-          onClose={() => setPasskey(null)}
         />
       )}
     </main>
   )
 }
 
-function BuyModal({ eventId, eventTitle, onClose, onPasskey }) {
+function BuyModal({ eventId, eventTitle, onClose }) {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -131,13 +119,17 @@ function BuyModal({ eventId, eventTitle, onClose, onPasskey }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Purchase failed')
 
+      // Both paths land on the same ticket-success page — real Stripe
+      // checkout redirects back to it, and the bypass/free path (no Stripe
+      // configured) jumps straight there since the ticket already exists.
+      // Either way the buyer gets the real TicketCard, not a bare code.
+      const normalizedEmail = email.trim().toLowerCase()
+      sessionStorage.setItem('vel_ticket_email', normalizedEmail)
       if (data.checkout_url) {
-        // Real Stripe — save email so success page can look up the ticket
-        sessionStorage.setItem('vel_ticket_email', email.trim().toLowerCase())
         window.location.href = data.checkout_url
       } else if (data.access_token) {
-        // Bypass / free — show passkey immediately
-        onPasskey(data.access_token)
+        onClose()
+        navigate(`/ticket-success?email=${encodeURIComponent(normalizedEmail)}`)
       }
     } catch (err) {
       setError(err.message)
@@ -206,75 +198,6 @@ function BuyModal({ eventId, eventTitle, onClose, onPasskey }) {
             ) : 'Continue to Checkout'}
           </button>
         </form>
-      </div>
-    </div>
-  )
-}
-
-function PasskeyModal({ passkey, eventId, onClose }) {
-  const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  function copyCode() {
-    navigator.clipboard.writeText(passkey).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-8 shadow-2xl text-center">
-        <div className="w-16 h-16 rounded-full bg-purple-900/50 border border-purple-700 flex items-center justify-center mx-auto mb-5">
-          <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a3 3 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
-          </svg>
-        </div>
-
-        <h2 className="text-2xl font-bold mb-1">You're In!</h2>
-        <p className="text-gray-400 text-sm mb-6">
-          Your ticket has been confirmed. Save your access code below — you'll need it to enter the event.
-          A copy has also been sent to your email.
-        </p>
-
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">Your Access Code</p>
-          <p className="font-mono text-white text-sm break-all leading-relaxed">{passkey}</p>
-        </div>
-
-        <button
-          onClick={copyCode}
-          className="w-full mb-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-white font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"
-        >
-          {copied ? (
-            <>
-              <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-              <span className="text-green-400">Copied!</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-              </svg>
-              Copy Code
-            </>
-          )}
-        </button>
-
-        <button
-          onClick={() => { onClose(); navigate(`/events/${eventId}/watch?code=${encodeURIComponent(passkey)}`) }}
-          className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2.5 rounded-xl transition-colors"
-        >
-          Go to Event
-        </button>
       </div>
     </div>
   )
