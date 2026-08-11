@@ -60,18 +60,23 @@ export default function TicketCard({
   const [capturing, setCapturing] = useState(false)
   const fileBase = `ticket-${(title || 'event').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${(code || serialStr)}`
 
-  async function captureCanvas() {
-    const { default: html2canvas } = await import('html2canvas')
-    return html2canvas(ticketRef.current, { backgroundColor: '#f5f5f4', scale: 2, useCORS: true })
+  // html-to-image (not html2canvas) — it serializes the DOM into an SVG and
+  // lets the browser's own engine rasterize it, so modern CSS the ticket
+  // actually uses (Tailwind v4's oklch() colors) renders correctly. A
+  // color-parsing library like html2canvas doesn't know oklch() and throws
+  // on every element.
+  async function captureDataUrl() {
+    const { toPng } = await import('html-to-image')
+    return toPng(ticketRef.current, { backgroundColor: '#f5f5f4', pixelRatio: 2, cacheBust: true })
   }
 
   async function handleDownload() {
     if (capturing) return
     setCapturing(true)
     try {
-      const canvas = await captureCanvas()
+      const dataUrl = await captureDataUrl()
       const link = document.createElement('a')
-      link.href = canvas.toDataURL('image/png')
+      link.href = dataUrl
       link.download = `${fileBase}.png`
       link.click()
     } catch {
@@ -102,9 +107,8 @@ export default function TicketCard({
     win.document.close()
 
     setCapturing(true)
-    captureCanvas()
-      .then((canvas) => {
-        const dataUrl = canvas.toDataURL('image/png')
+    captureDataUrl()
+      .then((dataUrl) => {
         win.document.body.innerHTML = `<img src="${dataUrl}" alt="Ticket" />`
         const img = win.document.querySelector('img')
         img.onload = () => { win.focus(); win.print() }

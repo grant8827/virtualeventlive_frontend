@@ -13,7 +13,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "amazon-ivs-web-broadcast": "^1.37.0",
     "hls.js": "^1.6.16",
-    "html2canvas": "^1.4.1",
+    "html-to-image": "^1.11.13",
     "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
