@@ -21,6 +21,8 @@ export default function TicketsFlyerPage() {
     card_bg_to: '#4338ca',
     card_bg_image: '',
     card_bg_image_ref: '',
+    logo_image: '',
+    logo_image_ref: '',
   })
   const [ticketSaving, setTicketSaving] = useState(false)
   const [ticketMsg, setTicketMsg] = useState(null) // { ok, text }
@@ -60,6 +62,8 @@ export default function TicketsFlyerPage() {
       card_bg_to: ev.card_bg_to || '#4338ca',
       card_bg_image: mediaUrl(ev.card_bg_image),
       card_bg_image_ref: ev.card_bg_image || '',
+      logo_image: mediaUrl(ev.logo_image),
+      logo_image_ref: ev.logo_image || '',
     })
   }
 
@@ -81,6 +85,28 @@ export default function TicketsFlyerPage() {
   async function handleRemoveImage() {
     if (selectedEventId) await api.del(`/events/${selectedEventId}/images/ticket`)
     setTicketForm((f) => ({ ...f, card_bg_image: '', card_bg_image_ref: '', bg_type: 'gradient' }))
+  }
+
+  // Host logo — shown in the corner of the ticket. Separate from the ticket
+  // background image above; saved immediately on upload/remove, no "Save
+  // Ticket" click required.
+  async function handleLogoFile(file) {
+    if (!file || !selectedEventId) return
+    try {
+      const data = await api.upload(`/events/${selectedEventId}/images/logo`, file)
+      setTicketForm((f) => ({
+        ...f,
+        logo_image: `${mediaUrl(data.image_url)}?v=${Date.now()}`,
+        logo_image_ref: data.image_url,
+      }))
+    } catch (err) {
+      setTicketMsg({ ok: false, text: err.message })
+    }
+  }
+
+  async function handleRemoveLogo() {
+    if (selectedEventId) await api.del(`/events/${selectedEventId}/images/logo`)
+    setTicketForm((f) => ({ ...f, logo_image: '', logo_image_ref: '' }))
   }
 
   async function handleTicketSetup(e) {
@@ -316,6 +342,40 @@ export default function TicketsFlyerPage() {
                   </div>
                 )}
 
+                {/* Host logo — shown in the ticket's corner. Optional: no upload, no logo on the ticket. */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Host Logo (optional)</label>
+                  {ticketForm.logo_image ? (
+                    <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-xl px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <img src={ticketForm.logo_image} alt="" className="w-8 h-8 rounded object-contain bg-white" />
+                        <span className="text-xs text-gray-400">Logo saved to cloud storage</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="text-xs text-red-500 hover:text-red-400 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-2 w-full bg-gray-900 border border-dashed border-gray-600 hover:border-purple-500 rounded-xl px-4 py-4 cursor-pointer transition-colors group">
+                      <svg className="w-5 h-5 text-gray-500 group-hover:text-purple-400 transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                      </svg>
+                      <span className="text-sm text-gray-500 group-hover:text-gray-300 transition-colors">Upload logo from PC</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                      />
+                    </label>
+                  )}
+                  <p className="text-xs text-gray-600 mt-1.5">No logo? The ticket just leaves that corner blank.</p>
+                </div>
+
                 {/* Background type toggle */}
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Card Background</label>
@@ -426,8 +486,7 @@ export default function TicketsFlyerPage() {
                   ticket_type={ticketForm.ticket_type}
                   venue_address={ticketForm.venue_address}
                   card_bg_from={ticketForm.card_bg_from}
-                  card_bg_to={ticketForm.card_bg_to}
-                  card_bg_image={ticketForm.bg_type === 'image' ? ticketForm.card_bg_image : ''}
+                  logo_image={ticketForm.logo_image}
                   preview
                 />
                 <p className="text-xs text-gray-600 text-center">Updates live as you type</p>

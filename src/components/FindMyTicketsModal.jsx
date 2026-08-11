@@ -151,8 +151,7 @@ export default function FindMyTicketsModal({ onClose }) {
                           ticket_type={t.ticket_type}
                           venue_address={t.venue_address}
                           card_bg_from={t.card_bg_from}
-                          card_bg_to={t.card_bg_to}
-                          card_bg_image={mediaUrl(t.card_bg_image)}
+                          logo_image={mediaUrl(t.logo_image)}
                           code={t.access_token}
                           serialNo={t.serial_no}
                           used={!!t.checked_in_channel}

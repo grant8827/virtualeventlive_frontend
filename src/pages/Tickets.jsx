@@ -70,8 +70,7 @@ export default function Tickets() {
                   ticket_type={ticket.ticket_type}
                   venue_address={ticket.venue_address}
                   card_bg_from={ticket.card_bg_from}
-                  card_bg_to={ticket.card_bg_to}
-                  card_bg_image={mediaUrl(ticket.card_bg_image)}
+                  logo_image={mediaUrl(ticket.logo_image)}
                   code={ticket.access_token}
                   serialNo={ticket.serial_no}
                   used={!!ticket.checked_in_channel}

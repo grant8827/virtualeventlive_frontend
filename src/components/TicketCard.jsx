@@ -16,8 +16,7 @@ export default function TicketCard({
   ticket_type = 'Virtual Only',
   venue_address,
   card_bg_from,
-  card_bg_to,
-  card_bg_image,
+  logo_image,
   code,
   serialNo,
   used = false,
@@ -128,21 +127,16 @@ export default function TicketCard({
         >
           {used && <UsedStamp channel={usedChannel} />}
 
-          {/* Eyebrow + logo chip */}
+          {/* Eyebrow + host logo — the logo chip only renders when the host has uploaded one */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <p className="text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase pt-1.5">
               {eventType || 'VirtualEventLive'}
             </p>
-            <div
-              className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0"
-              style={!card_bg_image ? { backgroundImage: `linear-gradient(135deg, ${accent}, ${card_bg_to || accent})` } : undefined}
-            >
-              {card_bg_image ? (
-                <img src={card_bg_image} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-[9px] font-black text-white/90 leading-none text-center">LOGO</span>
-              )}
-            </div>
+            {logo_image && (
+              <div className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
+                <img src={logo_image} alt="" className="w-full h-full object-contain" />
+              </div>
+            )}
           </div>
 
           {/* Event name */}
