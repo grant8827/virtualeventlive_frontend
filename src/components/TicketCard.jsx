@@ -79,8 +79,9 @@ export default function TicketCard({
       link.href = dataUrl
       link.download = `${fileBase}.png`
       link.click()
-    } catch {
-      alert('Could not save the ticket image — please try again.')
+    } catch (err) {
+      console.error('Ticket download failed:', err)
+      alert(`Could not save the ticket image: ${err?.message || err}`)
     } finally {
       setCapturing(false)
     }
@@ -113,9 +114,10 @@ export default function TicketCard({
         const img = win.document.querySelector('img')
         img.onload = () => { win.focus(); win.print() }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Ticket print failed:', err)
         win.close()
-        alert('Could not prepare the ticket for printing — please try again.')
+        alert(`Could not prepare the ticket for printing: ${err?.message || err}`)
       })
       .finally(() => setCapturing(false))
   }
