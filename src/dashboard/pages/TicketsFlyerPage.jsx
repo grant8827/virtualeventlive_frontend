@@ -323,7 +323,7 @@ export default function TicketsFlyerPage() {
                     className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
                   >
                     <option value="Virtual Only">Virtual Only</option>
-                    <option value="Virtual + Location">Virtual + Location</option>
+                    <option value="Virtual + Location">Virtual or Location</option>
                   </select>
                 </div>
 
