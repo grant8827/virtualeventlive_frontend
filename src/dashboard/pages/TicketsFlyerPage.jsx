@@ -697,7 +697,7 @@ function AdThumb({ ad }) {
   if (!img) return null
 
   return (
-    <div className="w-24 h-24 bg-gray-950 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="w-24 h-24 bg-white flex items-center justify-center overflow-hidden shrink-0">
       <img src={img} alt="" className="w-full h-full object-contain" />
     </div>
   )

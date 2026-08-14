@@ -13,9 +13,15 @@ export default function NavBar() {
   return (
     <nav className="border-b border-gray-800 px-6 py-3 bg-surface-nav">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        {/* Left — logo */}
-        <Link to="/" className="text-xl font-bold text-purple-400 tracking-tight shrink-0">
-          VirtualEvent<span className="text-white">Live</span>
+        {/* Left — logo. The mark's background isn't transparent, so it sits in
+            a white pill rather than directly on the dark nav. */}
+        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+          <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
+            <img src="/logo-icon.png" alt="" className="h-7 w-auto" />
+          </span>
+          <span className="text-xl font-bold text-purple-400 tracking-tight">
+            VirtualEvent<span className="text-white">Live</span>
+          </span>
         </Link>
 
         {/* Center — primary nav */}

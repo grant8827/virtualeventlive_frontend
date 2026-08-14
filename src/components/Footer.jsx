@@ -14,8 +14,8 @@ export default function Footer() {
 
             {/* Brand */}
             <div>
-              <Link to="/" className="text-lg font-bold text-purple-400 tracking-tight">
-                VirtualEvent<span className="text-white">Live</span>
+              <Link to="/" className="inline-block bg-white rounded-2xl p-3">
+                <img src="/logo-full.png" alt="VirtualEventLive — Every Event. Anywhere. Live." className="h-14 w-auto" />
               </Link>
               <p className="text-gray-500 text-sm mt-3 leading-relaxed">
                 Professional virtual event streaming with instant ticketing and same-day payouts.

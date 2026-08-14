@@ -46,8 +46,13 @@ function DashboardShell() {
       {/* Sidebar — pinned to the far-left edge of the viewport, full height */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 border-r border-gray-800 bg-surface-nav z-20">
         <Link to="/" className="block px-5 py-4 border-b border-gray-800 shrink-0">
-          <span className="text-lg font-bold text-purple-400 tracking-tight">
-            VirtualEvent<span className="text-white">Live</span>
+          <span className="flex items-center gap-2">
+            <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
+              <img src="/logo-icon.png" alt="" className="h-6 w-auto" />
+            </span>
+            <span className="text-lg font-bold text-purple-400 tracking-tight">
+              VirtualEvent<span className="text-white">Live</span>
+            </span>
           </span>
           <p className="text-xs text-gray-500 mt-0.5">Host Dashboard</p>
         </Link>
@@ -84,8 +89,13 @@ function DashboardShell() {
       {/* Mobile top bar — a full-height rail doesn't work on narrow screens */}
       <div className="md:hidden sticky top-0 z-20 bg-surface-nav border-b border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
-          <Link to="/" className="text-lg font-bold text-purple-400 tracking-tight">
-            VirtualEvent<span className="text-white">Live</span>
+          <Link to="/" className="flex items-center gap-2">
+            <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
+              <img src="/logo-icon.png" alt="" className="h-6 w-auto" />
+            </span>
+            <span className="text-lg font-bold text-purple-400 tracking-tight">
+              VirtualEvent<span className="text-white">Live</span>
+            </span>
           </Link>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors">
             Logout
