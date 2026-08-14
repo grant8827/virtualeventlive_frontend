@@ -11,7 +11,7 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="border-b border-gray-800 px-6 py-3 bg-gray-950">
+    <nav className="border-b border-gray-800 px-6 py-3 bg-surface-nav">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         {/* Left — logo */}
         <Link to="/" className="text-xl font-bold text-purple-400 tracking-tight shrink-0">

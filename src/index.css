@@ -1,5 +1,138 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------
+ * Brand palette — VirtualEventLive design tokens
+ * Defining these in @theme (Tailwind v4 CSS-first config) generates
+ * matching utility classes automatically, e.g.:
+ *   --color-brand        -> bg-brand, text-brand, border-brand
+ *   --color-surface-card -> bg-surface-card
+ * ------------------------------------------------------------------- */
+@theme {
+  /* Primary — Royal Purple: premium/modern, stands out, entertainment + tech */
+  --color-brand: #6C3BFF;
+  --color-brand-hover: #5A2EE6;
+
+  /* Secondary — Electric Blue: links, notifications, active tabs, highlights */
+  --color-electric-blue: #00C2FF;
+
+  /* Accent — Golden Yellow: Buy Ticket, Go Live, premium badges, important actions */
+  --color-golden: #FFC107;
+
+  /* Backgrounds */
+  --color-surface: #0F1117;       /* main background */
+  --color-surface-card: #1A1D29;  /* cards */
+  --color-surface-nav: #151823;   /* navigation */
+  --color-border: #2B3142;
+
+  /* Text */
+  --color-foreground: #FFFFFF;         /* primary */
+  --color-foreground-muted: #B8C0D0;   /* secondary */
+  --color-foreground-subtle: #8C96A8;  /* muted */
+
+  /* Buttons / states */
+  --color-success: #00C853;
+  --color-danger: #FF3D57;
+  --color-warning: #FFC107;
+
+  /* Event status */
+  --color-status-live: #FF1744;
+  --color-status-online: #00C853;
+  --color-status-upcoming: #FFC107;
+  --color-status-replay: #2196F3;
+
+  /* -----------------------------------------------------------------
+   * Site-wide repaint: the app already uses Tailwind's stock purple/
+   * gray/red/green/yellow/amber scales consistently (bg-purple-600 for
+   * primary actions, gray-900/800/700 for card/surface/border depth,
+   * red-* for errors, green-* for success). Overriding those scales
+   * here repoints every existing class across the app to the brand
+   * palette without having to touch each of the ~26 files that use
+   * them. Shade relationships (darker/lighter) are preserved; only the
+   * hue changes. Scales left alone (violet, teal, emerald, blue, etc.)
+   * are used for one-off decorative/functional accents unrelated to
+   * the brand system (e.g. the studio level-meter gradient) and are
+   * intentionally untouched.
+   * ------------------------------------------------------------- */
+
+  /* purple -> Royal Purple brand family. 600/700 are the exact spec
+     Primary Button background/hover values. */
+  --color-purple-50: #F4F2FF;
+  --color-purple-100: #E8E3FF;
+  --color-purple-200: #D3CBFF;
+  --color-purple-300: #B7A3FF;
+  --color-purple-400: #9A7AFF;
+  --color-purple-500: #8259FF;
+  --color-purple-600: #6C3BFF;
+  --color-purple-700: #5A2EE6;
+  --color-purple-800: #4823B8;
+  --color-purple-900: #35198A;
+  --color-purple-950: #200F52;
+
+  /* gray -> the app's Background/Text scale. 900 already lines up with
+     Cards, 700 with Borders, 500/400 with Muted/Secondary text. */
+  --color-gray-50: #F8F9FB;
+  --color-gray-100: #F2F4F8;
+  --color-gray-200: #E9ECF2;
+  --color-gray-300: #D6DBE5;
+  --color-gray-400: #B8C0D0;
+  --color-gray-500: #8C96A8;
+  --color-gray-600: #3C4356;
+  --color-gray-700: #2B3142;
+  --color-gray-800: #202436;
+  --color-gray-900: #1A1D29;
+  --color-gray-950: #0F1117;
+
+  /* red -> Danger */
+  --color-red-50: #FFF1F3;
+  --color-red-100: #FFE0E4;
+  --color-red-200: #FFC2CB;
+  --color-red-300: #FF95A3;
+  --color-red-400: #FF6B80;
+  --color-red-500: #FF3D57;
+  --color-red-600: #E62E48;
+  --color-red-700: #C22038;
+  --color-red-800: #8F1729;
+  --color-red-900: #5C0E1A;
+  --color-red-950: #33080E;
+
+  /* green -> Success */
+  --color-green-50: #E6FBEF;
+  --color-green-100: #C2F5D6;
+  --color-green-200: #8FEAB3;
+  --color-green-300: #52DC8B;
+  --color-green-400: #1FCB6C;
+  --color-green-500: #00C853;
+  --color-green-600: #00A845;
+  --color-green-700: #018238;
+  --color-green-800: #08602C;
+  --color-green-900: #0A4322;
+  --color-green-950: #052414;
+
+  /* yellow & amber -> Golden Yellow / Warning */
+  --color-yellow-50: #FFFBEB;
+  --color-yellow-100: #FFF3C4;
+  --color-yellow-200: #FFE58A;
+  --color-yellow-300: #FFD34D;
+  --color-yellow-400: #FFC107;
+  --color-yellow-500: #F2A900;
+  --color-yellow-600: #D68F00;
+  --color-yellow-700: #A66E00;
+  --color-yellow-800: #7A5200;
+  --color-yellow-900: #4D3400;
+  --color-yellow-950: #2E1F00;
+  --color-amber-50: #FFFBEB;
+  --color-amber-100: #FFF3C4;
+  --color-amber-200: #FFE58A;
+  --color-amber-300: #FFD34D;
+  --color-amber-400: #FFC107;
+  --color-amber-500: #F2A900;
+  --color-amber-600: #D68F00;
+  --color-amber-700: #A66E00;
+  --color-amber-800: #7A5200;
+  --color-amber-900: #4D3400;
+  --color-amber-950: #2E1F00;
+}
+
 /* Horizontal T-Bar fader — a modern lever cap instead of a default range thumb */
 .t-bar-slider {
   -webkit-appearance: none;

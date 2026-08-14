@@ -44,7 +44,7 @@ function DashboardShell() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Sidebar — pinned to the far-left edge of the viewport, full height */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 border-r border-gray-800 bg-gray-900 z-20">
+      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 border-r border-gray-800 bg-surface-nav z-20">
         <Link to="/" className="block px-5 py-4 border-b border-gray-800 shrink-0">
           <span className="text-lg font-bold text-purple-400 tracking-tight">
             VirtualEvent<span className="text-white">Live</span>
@@ -82,7 +82,7 @@ function DashboardShell() {
       </aside>
 
       {/* Mobile top bar — a full-height rail doesn't work on narrow screens */}
-      <div className="md:hidden sticky top-0 z-20 bg-gray-900 border-b border-gray-800">
+      <div className="md:hidden sticky top-0 z-20 bg-surface-nav border-b border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
           <Link to="/" className="text-lg font-bold text-purple-400 tracking-tight">
             VirtualEvent<span className="text-white">Live</span>
