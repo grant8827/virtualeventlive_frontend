@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
+import PasswordInput from '../../components/PasswordInput'
 
 export default function PayoutsPage() {
   const navigate = useNavigate()
@@ -199,8 +200,7 @@ export default function PayoutsPage() {
             <form onSubmit={handlePayoutSecuritySubmit} className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm text-gray-400">6-digit passcode</label>
-                <input
-                  type="password"
+                <PasswordInput
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   maxLength={6}
@@ -217,8 +217,7 @@ export default function PayoutsPage() {
                 <>
                   <div>
                     <label className="mb-1.5 block text-sm text-gray-400">Confirm passcode</label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       inputMode="numeric"
                       maxLength={6}
                       pattern="[0-9]{6}"
@@ -230,8 +229,7 @@ export default function PayoutsPage() {
                   </div>
                   <div>
                     <label className="mb-1.5 block text-sm text-gray-400">Current account password</label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       autoComplete="current-password"
                       required
                       value={payoutAccountPassword}

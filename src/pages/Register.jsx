@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 
 const initialForm = {
   fullName: '',
@@ -95,8 +96,7 @@ export default function Register() {
           </div>
 
           <Field label="Password" required>
-            <input
-              type="password"
+            <PasswordInput
               value={form.password}
               onChange={update('password')}
               required
