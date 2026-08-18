@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------
- * Brand palette — VirtualEventLive design tokens
+ * Brand palette — Virtual Event Plus design tokens
  * Defining these in @theme (Tailwind v4 CSS-first config) generates
  * matching utility classes automatically, e.g.:
  *   --color-brand        -> bg-brand, text-brand, border-brand

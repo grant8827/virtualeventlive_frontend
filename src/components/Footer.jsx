@@ -15,7 +15,7 @@ export default function Footer() {
             {/* Brand */}
             <div>
               <Link to="/" className="inline-block bg-white rounded-2xl p-3">
-                <img src="/logo-full.png" alt="VirtualEventLive — Every Event. Anywhere. Live." className="h-14 w-auto" />
+                <img src="/logo-full.png" alt="Virtual Event Plus — Every Event. Anywhere." className="h-14 w-auto" />
               </Link>
               <p className="text-gray-500 text-sm mt-3 leading-relaxed">
                 Professional virtual event streaming with instant ticketing and same-day payouts.
@@ -68,7 +68,7 @@ export default function Footer() {
 
           {/* Bottom bar */}
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
-            <p>© {year} VirtualEventLive. All rights reserved.</p>
+            <p>© {year} Virtual Event Plus. All rights reserved.</p>
             <p>$20/hr venue · 10% platform commission per ticket</p>
           </div>
         </div>

@@ -51,7 +51,7 @@ export default function SaleCard({
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><circle cx="12" cy="9" r="2.5" />
           </svg>
-          <span>VirtualEventLive</span>
+          <span>Virtual Event Plus</span>
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3">

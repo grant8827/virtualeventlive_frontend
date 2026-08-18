@@ -813,7 +813,7 @@ export default function GoLiveStudio({ events }) {
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-lg leading-none">📺</span>
               <h2 className="text-sm font-black text-white tracking-tight">
-                Virtual Event Live Production Center
+                Virtual Event Plus Production Center
                 <span className="text-gray-500 font-normal ml-1.5">(Studio Interface)</span>
               </h2>
             </div>

@@ -48,10 +48,7 @@ function DashboardShell() {
         <Link to="/" className="block px-5 py-4 border-b border-gray-800 shrink-0">
           <span className="flex items-center gap-2">
             <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
-              <img src="/logo-icon.png" alt="" className="h-6 w-auto" />
-            </span>
-            <span className="text-lg font-bold text-purple-400 tracking-tight">
-              VirtualEvent<span className="text-white">Live</span>
+              <img src="/logo-icon.png" alt="Virtual Event Plus" className="h-6 w-auto" />
             </span>
           </span>
           <p className="text-xs text-gray-500 mt-0.5">Host Dashboard</p>
@@ -89,12 +86,9 @@ function DashboardShell() {
       {/* Mobile top bar — a full-height rail doesn't work on narrow screens */}
       <div className="md:hidden sticky top-0 z-20 bg-surface-nav border-b border-gray-800">
         <div className="flex items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center" aria-label="Virtual Event Plus">
             <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
-              <img src="/logo-icon.png" alt="" className="h-6 w-auto" />
-            </span>
-            <span className="text-lg font-bold text-purple-400 tracking-tight">
-              VirtualEvent<span className="text-white">Live</span>
+              <img src="/logo-icon.png" alt="Virtual Event Plus" className="h-6 w-auto" />
             </span>
           </Link>
           <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors">

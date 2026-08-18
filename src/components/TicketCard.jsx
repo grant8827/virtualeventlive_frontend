@@ -136,7 +136,7 @@ export default function TicketCard({
           {/* Eyebrow + host logo — the logo chip only renders when the host has uploaded one */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <p className="text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase pt-1.5">
-              {eventType || 'VirtualEventLive'}
+              {eventType || 'Virtual Event Plus'}
             </p>
             {logo_image && (
               <div className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">

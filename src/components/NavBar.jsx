@@ -15,9 +15,9 @@ export default function NavBar() {
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         {/* Left — logo. The mark's background isn't transparent, so it sits in
             a white pill rather than directly on the dark nav. */}
-        <Link to="/" className="flex items-center shrink-0" aria-label="VirtualEventLive">
+        <Link to="/" className="flex items-center shrink-0" aria-label="Virtual Event Plus">
           <span className="bg-white rounded-lg p-1 flex items-center justify-center shrink-0">
-            <img src="/logo-icon.png" alt="VirtualEventLive" className="h-8 w-auto" />
+            <img src="/logo-icon.png" alt="Virtual Event Plus" className="h-8 w-auto" />
           </span>
         </Link>
 
