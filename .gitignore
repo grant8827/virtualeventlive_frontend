@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+
+# Local environment overrides may contain secrets.
+.env
+.env.*
+!.env.example
+
+# Tooling and test output.
+coverage/
+*.log
