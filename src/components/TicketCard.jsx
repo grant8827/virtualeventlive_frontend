@@ -67,7 +67,19 @@ export default function TicketCard({
   // on every element.
   async function captureDataUrl() {
     const { toPng } = await import('html-to-image')
-    return toPng(ticketRef.current, { backgroundColor: '#f5f5f4', pixelRatio: 2, cacheBust: true })
+    try {
+      return await toPng(ticketRef.current, { backgroundColor: '#f5f5f4', pixelRatio: 2, cacheBust: true })
+    } catch (err) {
+      // html-to-image rejects with the raw DOM `error` Event (not an Error)
+      // when an <img> it needs to inline — the host logo, most likely —
+      // fails to load, almost always because it's cross-origin and the
+      // image host isn't sending CORS headers. `err.message` on an Event is
+      // undefined, so surface something a person can actually act on.
+      if (err instanceof Event) {
+        throw new Error('a ticket image (likely the host logo) failed to load — the image server may be missing CORS headers')
+      }
+      throw err
+    }
   }
 
   async function handleDownload() {
@@ -140,7 +152,7 @@ export default function TicketCard({
             </p>
             {logo_image && (
               <div className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
-                <img src={logo_image} alt="" className="w-full h-full object-contain" />
+                <img src={logo_image} alt="" crossOrigin="anonymous" className="w-full h-full object-contain" />
               </div>
             )}
           </div>
