@@ -17,6 +17,7 @@ import ChatPage from './dashboard/pages/ChatPage'
 import TicketsFlyerPage from './dashboard/pages/TicketsFlyerPage'
 import ScanTicketsPage from './dashboard/pages/ScanTicketsPage'
 import PayoutsPage from './dashboard/pages/PayoutsPage'
+import ProfilePage from './dashboard/pages/ProfilePage'
 
 export default function App() {
   return (
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="tickets" element={<TicketsFlyerPage />} />
         <Route path="scan" element={<ScanTicketsPage />} />
         <Route path="payouts" element={<PayoutsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
     </Routes>
   )

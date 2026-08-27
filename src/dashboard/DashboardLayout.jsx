@@ -74,6 +74,16 @@ function DashboardShell() {
 
         <div className="px-3 py-4 border-t border-gray-800 shrink-0">
           <p className="text-xs text-gray-600 truncate mb-2 px-1">{user?.email}</p>
+          <NavLink
+            to="profile"
+            className={({ isActive }) =>
+              `block text-sm font-medium py-2 px-3 rounded-lg transition-colors ${
+                isActive ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              }`
+            }
+          >
+            Profile
+          </NavLink>
           <button
             onClick={handleLogout}
             className="w-full text-left text-sm text-gray-400 hover:text-white hover:bg-gray-800 py-2 px-3 rounded-lg transition-colors"
@@ -91,9 +101,14 @@ function DashboardShell() {
               <img src="/logo-icon.png" alt="Virtual Event Plus" className="h-6 w-auto" />
             </span>
           </Link>
-          <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors">
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <NavLink to="profile" className="text-sm text-gray-400 hover:text-white transition-colors">
+              Profile
+            </NavLink>
+            <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors">
+              Logout
+            </button>
+          </div>
         </div>
         <nav className="flex gap-1 px-2 pb-2 overflow-x-auto">
           {NAV_ITEMS.map((item) => (

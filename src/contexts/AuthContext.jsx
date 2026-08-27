@@ -47,8 +47,19 @@ export function AuthProvider({ children }) {
     setSessionExpired(false)
   }
 
+  // Patches the locally-cached user (e.g. after a profile edit changes the
+  // email) without a re-login round trip.
+  function updateUser(patch) {
+    setUser((u) => {
+      if (!u) return u
+      const next = { ...u, ...patch }
+      localStorage.setItem('vel_user', JSON.stringify(next))
+      return next
+    })
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, sessionExpired }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, sessionExpired }}>
       {children}
     </AuthContext.Provider>
   )
