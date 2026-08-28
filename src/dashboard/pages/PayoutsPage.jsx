@@ -12,6 +12,7 @@ export default function PayoutsPage() {
   const [wipayInput, setWipayInput] = useState('')
   const [paypalInput, setPaypalInput] = useState('')
   const [gatewayConnecting, setGatewayConnecting] = useState('')
+  const [gatewayAction, setGatewayAction] = useState('')
   const [gatewayConnectError, setGatewayConnectError] = useState('')
   const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
   const [payoutTriggerMessage, setPayoutTriggerMessage] = useState('')
@@ -158,6 +159,33 @@ export default function PayoutsPage() {
     }
   }
 
+  async function handleActivate(gateway) {
+    setGatewayConnectError('')
+    setGatewayAction(`activate-${gateway}`)
+    try {
+      await api.securePost('/connect/activate', { gateway }, payoutToken)
+      await fetchPayoutStatus()
+    } catch (err) {
+      setGatewayConnectError(err.message)
+    } finally {
+      setGatewayAction('')
+    }
+  }
+
+  async function handleDeactivate() {
+    if (!window.confirm('Deactivate payouts? New ticket purchases will be blocked until you activate an account again.')) return
+    setGatewayConnectError('')
+    setGatewayAction('deactivate')
+    try {
+      await api.securePost('/connect/deactivate', {}, payoutToken)
+      await fetchPayoutStatus()
+    } catch (err) {
+      setGatewayConnectError(err.message)
+    } finally {
+      setGatewayAction('')
+    }
+  }
+
   if (!payoutUnlocked) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
@@ -266,8 +294,8 @@ export default function PayoutsPage() {
     <div className="max-w-4xl">
       <h2 className="text-lg font-semibold mb-2">Payouts</h2>
       <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-        Connect a payout account to receive ticket revenue. Choose Stripe, WiPay, or PayPal —
-        whichever one you connect most recently becomes your active gateway.
+        Connect a payout account to receive ticket revenue, then choose which account is active.
+        Deactivating payouts blocks new ticket purchases without deleting your saved accounts.
       </p>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
@@ -307,6 +335,15 @@ export default function PayoutsPage() {
         >
           {payoutStatus?.stripe?.connected ? 'Manage Stripe Account →' : 'Connect Stripe Account →'}
         </button>
+        {payoutStatus?.stripe?.connected && payoutStatus.active_gateway !== 'stripe' && (
+          <button
+            onClick={() => handleActivate('stripe')}
+            disabled={gatewayAction !== ''}
+            className="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+          >
+            {gatewayAction === 'activate-stripe' ? 'Activating…' : 'Activate Stripe'}
+          </button>
+        )}
       </div>
 
       {/* WiPay */}
@@ -322,7 +359,18 @@ export default function PayoutsPage() {
           WiPay account are sent in a batch you trigger below.
         </p>
         {payoutStatus?.wipay?.connected ? (
-          <p className="text-sm text-gray-300 w-full break-all">Account: {payoutStatus.wipay.account_id}</p>
+          <div className="w-full">
+            <p className="text-sm text-gray-300 break-all">Account: {payoutStatus.wipay.account_id}</p>
+            {payoutStatus.active_gateway !== 'wipay' && (
+              <button
+                onClick={() => handleActivate('wipay')}
+                disabled={gatewayAction !== ''}
+                className="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {gatewayAction === 'activate-wipay' ? 'Activating…' : 'Activate WiPay'}
+              </button>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col gap-2 w-full">
             <input
@@ -356,7 +404,18 @@ export default function PayoutsPage() {
           a batch you trigger below.
         </p>
         {payoutStatus?.paypal?.connected ? (
-          <p className="text-sm text-gray-300 w-full break-all">Account: {payoutStatus.paypal.account_id}</p>
+          <div className="w-full">
+            <p className="text-sm text-gray-300 break-all">Account: {payoutStatus.paypal.account_id}</p>
+            {payoutStatus.active_gateway !== 'paypal' && (
+              <button
+                onClick={() => handleActivate('paypal')}
+                disabled={gatewayAction !== ''}
+                className="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {gatewayAction === 'activate-paypal' ? 'Activating…' : 'Activate PayPal'}
+              </button>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col gap-2 w-full">
             <input
@@ -376,6 +435,24 @@ export default function PayoutsPage() {
           </div>
         )}
       </div>
+
+      {payoutStatus?.active_gateway && (
+        <div className="bg-red-950/30 border border-red-900/60 rounded-2xl p-5 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-red-300">Deactivate payouts</h3>
+              <p className="text-xs text-gray-400 mt-1">Your accounts remain saved, but new ticket purchases will be blocked.</p>
+            </div>
+            <button
+              onClick={handleDeactivate}
+              disabled={gatewayAction !== ''}
+              className="shrink-0 border border-red-800 text-red-300 hover:bg-red-950 px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+            >
+              {gatewayAction === 'deactivate' ? 'Deactivating…' : 'Deactivate'}
+            </button>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Pending balance + manual payout trigger — WiPay/PayPal only */}
