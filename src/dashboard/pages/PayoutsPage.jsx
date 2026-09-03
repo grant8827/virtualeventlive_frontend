@@ -10,6 +10,7 @@ export default function PayoutsPage() {
   const [payoutStatusLoading, setPayoutStatusLoading] = useState(false)
   const [payoutBalance, setPayoutBalance] = useState(null)
   const [wipayInput, setWipayInput] = useState('')
+  const [paypalInput, setPaypalInput] = useState('')
   const [gatewayConnecting, setGatewayConnecting] = useState('')
   const [gatewayAction, setGatewayAction] = useState('')
   const [gatewayConnectError, setGatewayConnectError] = useState('')
@@ -121,11 +122,13 @@ export default function PayoutsPage() {
   }
 
   async function handleConnectPayPal() {
+    if (!paypalInput.trim()) return
     setGatewayConnectError('')
     setGatewayConnecting('paypal')
     try {
-      const data = await api.securePost('/connect/paypal', {}, payoutToken)
-      if (data.url) window.location.href = data.url
+      await api.securePost('/connect/paypal', { account_id: paypalInput.trim() }, payoutToken)
+      setPaypalInput('')
+      await fetchPayoutStatus()
     } catch (err) {
       setGatewayConnectError(err.message)
     } finally {
@@ -397,12 +400,12 @@ export default function PayoutsPage() {
           </span>
         )}
         <p className="text-gray-500 text-xs my-4 flex-1">
-          Connect securely on PayPal. PayPal splits each ticket payment between your merchant
-          account and the Virtual Event Plus platform fee.
+          Ticket sales settle to the platform first; payouts to your PayPal email are sent in
+          a batch you trigger below.
         </p>
         {payoutStatus?.paypal?.connected ? (
           <div className="w-full">
-            <p className="text-sm text-gray-300 break-all">Merchant: {payoutStatus.paypal.account_id}</p>
+            <p className="text-sm text-gray-300 break-all">Account: {payoutStatus.paypal.account_id}</p>
             {payoutStatus.active_gateway !== 'paypal' && (
               <button
                 onClick={() => handleActivate('paypal')}
@@ -415,12 +418,19 @@ export default function PayoutsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2 w-full">
+            <input
+              type="email"
+              value={paypalInput}
+              onChange={(e) => setPaypalInput(e.target.value)}
+              placeholder="PayPal email"
+              className="w-full min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center"
+            />
             <button
               onClick={handleConnectPayPal}
               disabled={gatewayConnecting === 'paypal'}
-              className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+              className="w-full bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
             >
-              {gatewayConnecting === 'paypal' ? 'Opening PayPal…' : 'Connect with PayPal →'}
+              {gatewayConnecting === 'paypal' ? 'Connecting…' : 'Connect'}
             </button>
           </div>
         )}
@@ -445,8 +455,8 @@ export default function PayoutsPage() {
       )}
       </div>
 
-      {/* WiPay is the only remaining manual batch-payout rail. */}
-      {payoutStatus?.active_gateway === 'wipay' && (
+      {/* Pending balance + manual payout trigger — WiPay/PayPal only */}
+      {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Pending balance</h3>
