@@ -9,9 +9,6 @@ export default function PayoutsPage() {
   const [payoutStatus, setPayoutStatus] = useState(null)
   const [payoutStatusLoading, setPayoutStatusLoading] = useState(false)
   const [payoutBalance, setPayoutBalance] = useState(null)
-  const [wipayInput, setWipayInput] = useState('')
-  const [paypalInput, setPaypalInput] = useState('')
-  const [gatewayConnecting, setGatewayConnecting] = useState('')
   const [gatewayAction, setGatewayAction] = useState('')
   const [gatewayConnectError, setGatewayConnectError] = useState('')
   const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
@@ -103,36 +100,6 @@ export default function PayoutsPage() {
       setPayoutBalance(null)
     } finally {
       setPayoutStatusLoading(false)
-    }
-  }
-
-  async function handleConnectWiPay() {
-    if (!wipayInput.trim()) return
-    setGatewayConnectError('')
-    setGatewayConnecting('wipay')
-    try {
-      await api.securePost('/connect/wipay', { account_id: wipayInput.trim() }, payoutToken)
-      setWipayInput('')
-      await fetchPayoutStatus()
-    } catch (err) {
-      setGatewayConnectError(err.message)
-    } finally {
-      setGatewayConnecting('')
-    }
-  }
-
-  async function handleConnectPayPal() {
-    if (!paypalInput.trim()) return
-    setGatewayConnectError('')
-    setGatewayConnecting('paypal')
-    try {
-      await api.securePost('/connect/paypal', { account_id: paypalInput.trim() }, payoutToken)
-      setPaypalInput('')
-      await fetchPayoutStatus()
-    } catch (err) {
-      setGatewayConnectError(err.message)
-    } finally {
-      setGatewayConnecting('')
     }
   }
 
@@ -294,8 +261,8 @@ export default function PayoutsPage() {
     <div className="max-w-4xl">
       <h2 className="text-lg font-semibold mb-2">Payouts</h2>
       <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-        Connect a payout account to receive ticket revenue, then choose which account is active.
-        Deactivating payouts blocks new ticket purchases without deleting your saved accounts.
+        Stripe is currently the only available provider for ticket payments and host payouts.
+        PayPal and WiPay are coming soon.
       </p>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
@@ -347,93 +314,27 @@ export default function PayoutsPage() {
       </div>
 
       {/* WiPay */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+      <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
         <h3 className="font-semibold">WiPay</h3>
-        {payoutStatus?.wipay?.connected && (
-          <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'wipay' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
-            {payoutStatus.active_gateway === 'wipay' ? 'Active' : 'Connected'}
-          </span>
-        )}
+        <span className="text-xs px-2 py-1 rounded-full mt-2 bg-amber-950 text-amber-300">Coming Soon</span>
         <p className="text-gray-500 text-xs my-4 flex-1">
-          Caribbean payout rail. Ticket sales settle to the platform first; payouts to your
-          WiPay account are sent in a batch you trigger below.
+          WiPay ticket payments and host payouts are not available yet.
         </p>
-        {payoutStatus?.wipay?.connected ? (
-          <div className="w-full">
-            <p className="text-sm text-gray-300 break-all">Account: {payoutStatus.wipay.account_id}</p>
-            {payoutStatus.active_gateway !== 'wipay' && (
-              <button
-                onClick={() => handleActivate('wipay')}
-                disabled={gatewayAction !== ''}
-                className="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-              >
-                {gatewayAction === 'activate-wipay' ? 'Activating…' : 'Activate WiPay'}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 w-full">
-            <input
-              type="text"
-              value={wipayInput}
-              onChange={(e) => setWipayInput(e.target.value)}
-              placeholder="WiPay account number"
-              className="w-full min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center"
-            />
-            <button
-              onClick={handleConnectWiPay}
-              disabled={gatewayConnecting === 'wipay'}
-              className="w-full bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-            >
-              {gatewayConnecting === 'wipay' ? 'Connecting…' : 'Connect'}
-            </button>
-          </div>
-        )}
+        <button disabled className="w-full bg-gray-800 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold cursor-not-allowed">
+          Coming Soon
+        </button>
       </div>
 
       {/* PayPal */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+      <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
         <h3 className="font-semibold">PayPal</h3>
-        {payoutStatus?.paypal?.connected && (
-          <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'paypal' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
-            {payoutStatus.active_gateway === 'paypal' ? 'Active' : 'Connected'}
-          </span>
-        )}
+        <span className="text-xs px-2 py-1 rounded-full mt-2 bg-amber-950 text-amber-300">Coming Soon</span>
         <p className="text-gray-500 text-xs my-4 flex-1">
-          Ticket sales settle to the platform first; payouts to your PayPal email are sent in
-          a batch you trigger below.
+          PayPal ticket payments and host payouts are not available yet.
         </p>
-        {payoutStatus?.paypal?.connected ? (
-          <div className="w-full">
-            <p className="text-sm text-gray-300 break-all">Account: {payoutStatus.paypal.account_id}</p>
-            {payoutStatus.active_gateway !== 'paypal' && (
-              <button
-                onClick={() => handleActivate('paypal')}
-                disabled={gatewayAction !== ''}
-                className="w-full mt-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-              >
-                {gatewayAction === 'activate-paypal' ? 'Activating…' : 'Activate PayPal'}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 w-full">
-            <input
-              type="email"
-              value={paypalInput}
-              onChange={(e) => setPaypalInput(e.target.value)}
-              placeholder="PayPal email"
-              className="w-full min-w-0 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-center"
-            />
-            <button
-              onClick={handleConnectPayPal}
-              disabled={gatewayConnecting === 'paypal'}
-              className="w-full bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-            >
-              {gatewayConnecting === 'paypal' ? 'Connecting…' : 'Connect'}
-            </button>
-          </div>
-        )}
+        <button disabled className="w-full bg-gray-800 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold cursor-not-allowed">
+          Coming Soon
+        </button>
       </div>
 
       {payoutStatus?.active_gateway && (
@@ -455,11 +356,11 @@ export default function PayoutsPage() {
       )}
       </div>
 
-      {/* Pending balance + manual payout trigger — WiPay/PayPal only */}
-      {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && (
+      {/* Keep legacy balances withdrawable without allowing new WiPay/PayPal setups. */}
+      {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && payoutBalance?.pending_amount > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Pending balance</h3>
+            <h3 className="font-semibold">Legacy pending balance</h3>
             <span className="text-green-400 font-semibold">
               ${Number(payoutBalance?.pending_amount || 0).toFixed(2)}
             </span>
