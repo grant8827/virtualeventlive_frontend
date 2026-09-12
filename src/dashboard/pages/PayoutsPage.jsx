@@ -11,7 +11,6 @@ export default function PayoutsPage() {
   const [payoutBalance, setPayoutBalance] = useState(null)
   const [gatewayAction, setGatewayAction] = useState('')
   const [gatewayConnectError, setGatewayConnectError] = useState('')
-  const [paypalEmail, setPaypalEmail] = useState('')
   const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
   const [payoutTriggerMessage, setPayoutTriggerMessage] = useState('')
   const [payoutSecurityLoading, setPayoutSecurityLoading] = useState(false)
@@ -127,14 +126,12 @@ export default function PayoutsPage() {
     }
   }
 
-  async function handlePayPalConnect(e) {
-    e.preventDefault()
+  async function handlePayPalConnect() {
     setGatewayConnectError('')
     setGatewayAction('connect-paypal')
     try {
-      await api.securePost('/connect/paypal', { email: paypalEmail.trim().toLowerCase() }, payoutToken)
-      setPaypalEmail('')
-      await fetchPayoutStatus()
+      const data = await api.securePost('/connect/paypal', {}, payoutToken)
+      if (data.url) window.location.href = data.url
     } catch (err) {
       setGatewayConnectError(err.message)
     } finally {
@@ -277,8 +274,8 @@ export default function PayoutsPage() {
     <div className="max-w-4xl">
       <h2 className="text-lg font-semibold mb-2">Payouts</h2>
       <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-        Choose Stripe or PayPal. Buyers use the provider you activate, and the platform records
-        its 10% commission while 90% is allocated to you.
+        Choose Stripe or PayPal. Buyers use the provider you activate; 90% goes directly to
+        your connected merchant account and the platform receives its 10% fee.
       </p>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
@@ -350,7 +347,7 @@ export default function PayoutsPage() {
           </span>
         )}
         <p className="text-gray-500 text-xs my-4 flex-1">
-          Buyers check out with PayPal. Your ticket balance is paid to your PayPal email.
+          Connect securely with PayPal. Ticket revenue goes directly to your PayPal merchant account.
         </p>
         {payoutStatus?.paypal?.connected ? (
           <>
@@ -364,12 +361,11 @@ export default function PayoutsPage() {
             )}
           </>
         ) : (
-          <form onSubmit={handlePayPalConnect} className="w-full space-y-2">
-            <input type="email" required value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="PayPal account email" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500" />
-            <button disabled={gatewayAction !== '' || !paypalEmail.trim()} className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50">
+          <div className="w-full space-y-2">
+            <button type="button" onClick={handlePayPalConnect} disabled={gatewayAction !== ''} className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50">
               {gatewayAction === 'connect-paypal' ? 'Connecting…' : 'Connect PayPal'}
             </button>
-          </form>
+          </div>
         )}
       </div>
 
