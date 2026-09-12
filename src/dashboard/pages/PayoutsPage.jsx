@@ -11,6 +11,7 @@ export default function PayoutsPage() {
   const [payoutBalance, setPayoutBalance] = useState(null)
   const [gatewayAction, setGatewayAction] = useState('')
   const [gatewayConnectError, setGatewayConnectError] = useState('')
+  const [paypalEmail, setPaypalEmail] = useState('')
   const [payoutTriggerLoading, setPayoutTriggerLoading] = useState(false)
   const [payoutTriggerMessage, setPayoutTriggerMessage] = useState('')
   const [payoutSecurityLoading, setPayoutSecurityLoading] = useState(false)
@@ -123,6 +124,21 @@ export default function PayoutsPage() {
       if (data.url) window.location.href = data.url
     } catch (err) {
       alert(err.message)
+    }
+  }
+
+  async function handlePayPalConnect(e) {
+    e.preventDefault()
+    setGatewayConnectError('')
+    setGatewayAction('connect-paypal')
+    try {
+      await api.securePost('/connect/paypal', { email: paypalEmail.trim().toLowerCase() }, payoutToken)
+      setPaypalEmail('')
+      await fetchPayoutStatus()
+    } catch (err) {
+      setGatewayConnectError(err.message)
+    } finally {
+      setGatewayAction('')
     }
   }
 
@@ -261,8 +277,8 @@ export default function PayoutsPage() {
     <div className="max-w-4xl">
       <h2 className="text-lg font-semibold mb-2">Payouts</h2>
       <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-        Stripe is currently the only available provider for ticket payments and host payouts.
-        PayPal and WiPay are coming soon.
+        Choose Stripe or PayPal. Buyers use the provider you activate, and the platform records
+        its 10% commission while 90% is allocated to you.
       </p>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
@@ -326,15 +342,35 @@ export default function PayoutsPage() {
       </div>
 
       {/* PayPal */}
-      <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center min-w-0">
         <h3 className="font-semibold">PayPal</h3>
-        <span className="text-xs px-2 py-1 rounded-full mt-2 bg-amber-950 text-amber-300">Coming Soon</span>
+        {payoutStatus?.paypal?.connected && (
+          <span className={`text-xs px-2 py-1 rounded-full mt-2 ${payoutStatus.active_gateway === 'paypal' ? 'bg-green-900 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
+            {payoutStatus.active_gateway === 'paypal' ? 'Active' : 'Connected'}
+          </span>
+        )}
         <p className="text-gray-500 text-xs my-4 flex-1">
-          PayPal ticket payments and host payouts are not available yet.
+          Buyers check out with PayPal. Your ticket balance is paid to your PayPal email.
         </p>
-        <button disabled className="w-full bg-gray-800 text-gray-500 px-4 py-2 rounded-xl text-sm font-semibold cursor-not-allowed">
-          Coming Soon
-        </button>
+        {payoutStatus?.paypal?.connected ? (
+          <>
+            <p className="w-full truncate text-xs text-gray-400 mb-3" title={payoutStatus.paypal.account_id}>
+              {payoutStatus.paypal.account_id}
+            </p>
+            {payoutStatus.active_gateway !== 'paypal' && (
+              <button onClick={() => handleActivate('paypal')} disabled={gatewayAction !== ''} className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50">
+                {gatewayAction === 'activate-paypal' ? 'Activating…' : 'Activate PayPal'}
+              </button>
+            )}
+          </>
+        ) : (
+          <form onSubmit={handlePayPalConnect} className="w-full space-y-2">
+            <input type="email" required value={paypalEmail} onChange={(e) => setPaypalEmail(e.target.value)} placeholder="PayPal account email" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500" />
+            <button disabled={gatewayAction !== '' || !paypalEmail.trim()} className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50">
+              {gatewayAction === 'connect-paypal' ? 'Connecting…' : 'Connect PayPal'}
+            </button>
+          </form>
+        )}
       </div>
 
       {payoutStatus?.active_gateway && (
@@ -356,11 +392,11 @@ export default function PayoutsPage() {
       )}
       </div>
 
-      {/* Keep legacy balances withdrawable without allowing new WiPay/PayPal setups. */}
+      {/* PayPal/WiPay balances are held by the platform until the host requests payout. */}
       {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && payoutBalance?.pending_amount > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Legacy pending balance</h3>
+            <h3 className="font-semibold">Pending payout balance</h3>
             <span className="text-green-400 font-semibold">
               ${Number(payoutBalance?.pending_amount || 0).toFixed(2)}
             </span>
