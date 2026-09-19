@@ -388,8 +388,8 @@ export default function PayoutsPage() {
       )}
       </div>
 
-      {/* PayPal/WiPay balances are held by the platform until the host requests payout. */}
-      {payoutStatus?.active_gateway && payoutStatus.active_gateway !== 'stripe' && payoutBalance?.pending_amount > 0 && (
+      {/* WiPay is the only manual payout rail. Stripe and PayPal split at checkout. */}
+      {payoutStatus?.active_gateway === 'wipay' && payoutBalance?.pending_amount > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Pending payout balance</h3>
