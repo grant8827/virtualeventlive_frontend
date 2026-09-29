@@ -31,7 +31,7 @@ export default function Home() {
 
           <h1 className="text-6xl sm:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
             Stream. Ticket.{' '}
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-violet-300">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-violet-400 via-purple-400 to-green-400">
               Earn.
             </span>
           </h1>
@@ -43,7 +43,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              to="/register"
+              to="/login"
               className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-2xl text-base font-semibold transition-all shadow-lg shadow-purple-900/40 hover:shadow-purple-700/50 hover:-translate-y-0.5"
             >
               <span className="flex items-center justify-center gap-2">
@@ -52,7 +52,7 @@ export default function Home() {
                 </svg>
                 Host Your Event
               </span>
-              <span className="block text-purple-300 text-xs font-normal mt-0.5">Go live in minutes</span>
+              <span className="block text-purple-300 text-xs font-normal mt-0.5">Host sign in</span>
             </Link>
 
             <Link
@@ -82,7 +82,8 @@ export default function Home() {
             </button>
           </div>
         </div>
-      <hr/>
+        {/* Divider in the logo's gradient, like the lines beside its tagline */}
+        <div className="h-px max-w-5xl mx-auto bg-linear-to-r from-violet-600/0 via-purple-600/60 to-green-500/0" />
       </section>
 
       {/* ── Featured Events ── */}
@@ -128,19 +129,19 @@ export default function Home() {
                 step: '01',
                 title: 'Book Your Slot',
                 body: 'Pick your date and time, choose your event type, and secure your virtual venue for just $20/hr.',
-                color: 'from-purple-600 to-violet-600',
+                color: 'from-violet-600 to-purple-600',
               },
               {
                 step: '02',
                 title: 'Set Up Tickets',
                 body: 'Design your ticket card, set your price, and publish — buyers get a unique access code via email.',
-                color: 'from-violet-600 to-fuchsia-600',
+                color: 'from-purple-700 to-purple-500',
               },
               {
                 step: '03',
                 title: 'Go Live & Earn',
                 body: 'Stream from your browser with one click. Payouts land in your Stripe account the same day.',
-                color: 'from-fuchsia-600 to-pink-600',
+                color: 'from-purple-600 to-green-600',
               },
             ].map((s) => (
               <div key={s.step} className="relative text-center md:text-left">
@@ -208,11 +209,11 @@ export default function Home() {
           </div>
 
           {/* Payout card */}
-          <div className="relative overflow-hidden bg-gray-900/60 border border-white/5 rounded-3xl p-8 group hover:border-emerald-500/20 transition-all duration-300">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-600/8 rounded-full blur-[50px] pointer-events-none" />
+          <div className="relative overflow-hidden bg-gray-900/60 border border-white/5 rounded-3xl p-8 group hover:border-green-500/20 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-green-600/8 rounded-full blur-[50px] pointer-events-none" />
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-900/50 border border-emerald-800/50 flex items-center justify-center mb-5">
-                <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-2xl bg-green-900/50 border border-green-800/50 flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -224,11 +225,11 @@ export default function Home() {
           </div>
 
           {/* Access control card */}
-          <div className="relative overflow-hidden bg-gray-900/60 border border-white/5 rounded-3xl p-8 group hover:border-fuchsia-500/20 transition-all duration-300">
-            <div className="absolute bottom-0 right-0 w-40 h-40 bg-fuchsia-700/8 rounded-full blur-[40px] pointer-events-none" />
+          <div className="relative overflow-hidden bg-gray-900/60 border border-white/5 rounded-3xl p-8 group hover:border-purple-500/20 transition-all duration-300">
+            <div className="absolute bottom-0 right-0 w-40 h-40 bg-purple-700/8 rounded-full blur-[40px] pointer-events-none" />
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-fuchsia-900/50 border border-fuchsia-800/50 flex items-center justify-center mb-5">
-                <svg className="w-6 h-6 text-fuchsia-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-2xl bg-purple-900/50 border border-purple-800/50 flex items-center justify-center mb-5">
+                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
               </div>
@@ -241,7 +242,7 @@ export default function Home() {
 
           {/* CTA card */}
           <div className="relative overflow-hidden rounded-3xl p-8"
-            style={{ background: 'linear-gradient(135deg, #581c87 0%, #4c1d95 50%, #2e1065 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #540BC4 0%, #003BD9 55%, #011453 100%)' }}
           >
             <div className="absolute inset-0 opacity-20"
               style={{
@@ -252,16 +253,16 @@ export default function Home() {
             <div className="relative flex flex-col h-full justify-between">
               <div>
                 <p className="text-purple-200 text-xs font-semibold uppercase tracking-widest mb-3">Ready to host?</p>
-                <h3 className="text-2xl font-black text-white mb-2">Start for free</h3>
+                <h3 className="text-2xl font-black text-white mb-2">Hosting is by invitation</h3>
                 <p className="text-purple-200/70 text-sm leading-relaxed">
-                  Create your account in 60 seconds. No credit card required until your first event.
+                  Invited hosts register from the link in their email. Already approved? Sign in to your dashboard.
                 </p>
               </div>
               <Link
-                to="/register"
+                to="/login"
                 className="mt-6 inline-flex items-center justify-center gap-2 bg-white text-purple-900 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors"
               >
-                Get Started →
+                Host sign in →
               </Link>
             </div>
           </div>

@@ -1,11 +1,11 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import PasswordInput from '../components/PasswordInput'
 
 const initialForm = {
   fullName: '',
-  email: '',
   password: '',
   phone: '',
   addressLine1: '',
@@ -32,12 +32,26 @@ function Field({ label, required, children }) {
 const inputClass =
   'w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors'
 
+// Registration is invite-only: this page only works from a superuser's
+// invite link (/register?token=…). New accounts wait for approval.
 export default function Register() {
-  const { register, login } = useAuth()
-  const navigate = useNavigate()
+  const { register } = useAuth()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token') || ''
+  // { email } once the invite checks out, { error } if it doesn't.
+  const [invite, setInvite] = useState(null)
   const [form, setForm] = useState(initialForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (!token) return
+    api
+      .get(`/auth/invitations/${encodeURIComponent(token)}`)
+      .then((data) => setInvite({ email: data.email }))
+      .catch((err) => setInvite({ error: err.message }))
+  }, [token])
 
   function update(field) {
     return (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
@@ -49,7 +63,7 @@ export default function Register() {
     setLoading(true)
     try {
       await register({
-        email: form.email,
+        invite_token: token,
         password: form.password,
         full_name: form.fullName,
         phone: form.phone,
@@ -61,13 +75,36 @@ export default function Register() {
         country: form.country,
         organization_name: form.organizationName,
       })
-      await login(form.email, form.password)
-      navigate('/dashboard')
+      setDone(true)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!token || invite?.error || done) {
+    const title = done ? 'Thanks for registering' : !token ? 'Registration is by invitation' : 'Invitation not valid'
+    const body = done
+      ? "Your account is waiting for approval. We'll email you as soon as it's approved, then you can sign in."
+      : !token
+        ? 'Host accounts are invite-only. If you were invited, use the link in your invitation email.'
+        : invite.error
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
+          <h1 className="text-2xl font-bold mb-3">{title}</h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">{body}</p>
+          <Link to="/login" className="text-purple-400 hover:text-purple-300 underline text-sm">
+            Go to sign in
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (!invite) {
+    return <p className="min-h-[80vh] flex items-center justify-center text-gray-500 text-sm">Checking your invitation…</p>
   }
 
   return (
@@ -88,7 +125,7 @@ export default function Register() {
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Email address" required>
-              <input type="email" value={form.email} onChange={update('email')} required className={inputClass} />
+              <input type="email" value={invite.email} readOnly className={`${inputClass} opacity-70 cursor-not-allowed`} />
             </Field>
             <Field label="Phone number" required>
               <input type="tel" value={form.phone} onChange={update('phone')} required className={inputClass} />
@@ -100,7 +137,8 @@ export default function Register() {
               value={form.password}
               onChange={update('password')}
               required
-              minLength={6}
+              minLength={8}
+              placeholder="At least 8 characters"
               className={inputClass}
             />
           </Field>

@@ -306,6 +306,10 @@ export default function GoLiveStudio({ events }) {
   const [creds, setCreds] = useState(null)
   const [credsLoading, setCredsLoading] = useState(false)
   const [reprovisioning, setReprovisioning] = useState(false)
+  // { eventId, live, viewer_count } from IVS; only shown while it matches
+  // the selected event, so switching events never flashes a stale count.
+  const [viewerState, setViewerState] = useState(null)
+  const viewers = viewerState?.eventId === selectedEventId ? viewerState : null
 
   const [sources, setSources] = useState([])
   const [restoreErrors, setRestoreErrors] = useState([])
@@ -535,6 +539,21 @@ export default function GoLiveStudio({ events }) {
       .then(setCreds)
       .catch(() => setCreds(null))
       .finally(() => setCredsLoading(false))
+  }, [selectedEventId])
+
+  // Poll the live viewer count. IVS only refreshes it every ~15s, so polling
+  // faster wouldn't show anything new.
+  useEffect(() => {
+    if (!selectedEventId) return
+    let cancelled = false
+    const load = () =>
+      api
+        .get(`/events/${selectedEventId}/viewers`)
+        .then((data) => { if (!cancelled) setViewerState({ ...data, eventId: selectedEventId }) })
+        .catch(() => {})
+    load()
+    const timer = setInterval(load, 15000)
+    return () => { cancelled = true; clearInterval(timer) }
   }, [selectedEventId])
 
   async function handleReprovision() {
@@ -867,6 +886,23 @@ export default function GoLiveStudio({ events }) {
               </div>
             )}
 
+            {/* Live viewer count */}
+            {viewers && (
+              <div
+                title="Viewers watching right now (updates about every 15 seconds)"
+                className={`flex items-center gap-1.5 text-[11px] px-2.5 py-2 rounded-xl border font-medium ${
+                  viewers.live
+                    ? 'bg-red-950 border-red-800 text-red-300'
+                    : 'bg-gray-900 border-gray-700 text-gray-500'
+                }`}
+              >
+                <span aria-hidden="true">👁</span>
+                {viewers.live
+                  ? `${viewers.viewer_count} watching`
+                  : 'Not live'}
+              </div>
+            )}
+
             {!credsLoading && creds && !creds.ivs_ready && (
               <button
                 onClick={handleReprovision}
@@ -996,7 +1032,7 @@ export default function GoLiveStudio({ events }) {
             className="w-full flex items-center justify-center gap-1.5 text-white font-black py-2.5 rounded-xl transition-all disabled:opacity-25 disabled:cursor-not-allowed text-sm"
             style={{
               background: pvwLabel
-                ? 'linear-gradient(135deg,#7c3aed 0%,#a855f7 100%)'
+                ? 'linear-gradient(135deg,#003BD9 0%,#0067F9 100%)'
                 : '#374151',
             }}
           >

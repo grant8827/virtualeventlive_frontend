@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useDashboard } from '../DashboardContext'
@@ -15,7 +15,11 @@ export default function BookEventPage() {
     date: '',
     start_time: '',
     end_time: '',
+    assigned_to: '',
   })
+  // Active staff/admins on this account, for the optional "Assign To" pick.
+  // Staff only see events assigned to them.
+  const [team, setTeam] = useState([])
   const [formError, setFormError] = useState('')
   const [venueFeePreview, setVenueFeePreview] = useState(null)
   // Two-step setup flow: 'form' → 'pay'. The event is not saved to the
@@ -27,6 +31,13 @@ export default function BookEventPage() {
   const [payError, setPayError] = useState('')
   const [bypassLoading, setBypassLoading] = useState(false)
   const [bypassError, setBypassError] = useState('')
+
+  useEffect(() => {
+    api
+      .get('/team')
+      .then((data) => setTeam((data.users || []).filter((u) => u.status === 'active')))
+      .catch(() => setTeam([]))
+  }, [])
 
   // Combine date + start_time/end_time into ISO instants. If end_time is
   // earlier than start_time, treat it as crossing midnight into the next day.
@@ -71,10 +82,13 @@ export default function BookEventPage() {
       return
     }
     const hours = Math.ceil(diff / 3600000)
+    const assignee = team.find((u) => u.id === form.assigned_to)
     setPendingEvent({
       title: form.title,
       event_type: form.event_type,
       description: form.description,
+      assigned_to: assignee?.id || '',
+      assigned_to_name: assignee ? assignee.full_name || assignee.email : '',
       starts_at: range.starts_at.toISOString(),
       ends_at: range.ends_at.toISOString(),
       hours,
@@ -96,6 +110,7 @@ export default function BookEventPage() {
         description: pendingEvent.description,
         starts_at: pendingEvent.starts_at,
         ends_at: pendingEvent.ends_at,
+        assigned_to: pendingEvent.assigned_to,
       })
       const data = await api.post(`/events/${created.id}/checkout`, {})
       startCheckout(data, navigate)
@@ -121,6 +136,7 @@ export default function BookEventPage() {
         description: pendingEvent.description,
         starts_at: pendingEvent.starts_at,
         ends_at: pendingEvent.ends_at,
+        assigned_to: pendingEvent.assigned_to,
       })
       await api.post(`/events/${created.id}/bypass-activate`, {})
       await fetchEvents()
@@ -139,7 +155,7 @@ export default function BookEventPage() {
     setPendingEvent(null)
     setPayError('')
     setBypassError('')
-    setForm({ title: '', event_type: 'concert', description: '', date: '', start_time: '', end_time: '' })
+    setForm({ title: '', event_type: 'concert', description: '', date: '', start_time: '', end_time: '', assigned_to: '' })
     setVenueFeePreview(null)
   }
 
@@ -240,6 +256,26 @@ export default function BookEventPage() {
               className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors resize-none"
             />
           </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1.5">Assign To (optional)</label>
+            <select
+              value={form.assigned_to}
+              onChange={(e) => updateForm('assigned_to', e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 transition-colors"
+            >
+              <option value="">Unassigned</option>
+              {team.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {`${member.full_name || member.email}${member.stream_name ? ` (${member.stream_name})` : ''}`}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1.5">
+              {team.length === 0
+                ? 'Add staff on the Add User page to assign events.'
+                : 'Staff only see events assigned to them. Admins see every event.'}
+            </p>
+          </div>
           {venueFeePreview && (
             <div className="bg-purple-950 border border-purple-800 rounded-xl px-4 py-3">
               <p className="text-sm text-purple-200">
@@ -298,6 +334,10 @@ export default function BookEventPage() {
                 <span className="capitalize">{pendingEvent.event_type}</span>
               </div>
               <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Assigned to</span>
+                <span>{pendingEvent.assigned_to_name || 'Unassigned'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Starts</span>
                 <span>{new Date(pendingEvent.starts_at).toLocaleString()}</span>
               </div>
@@ -346,20 +386,23 @@ export default function BookEventPage() {
             )}
           </button>
 
-          {/* Bypass — testing only */}
-          <div className="border border-dashed border-gray-700 rounded-xl px-4 py-3 space-y-2">
-            <p className="text-xs text-gray-600 text-center font-medium tracking-wide uppercase">Testing only</p>
-            <button
-              onClick={handleBypassActivate}
-              disabled={bypassLoading || payLoading}
-              className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 py-2.5 rounded-xl text-sm font-medium transition-colors border border-gray-700"
-            >
-              {bypassLoading ? 'Saving…' : 'Bypass Payment & Activate'}
-            </button>
-            {bypassError && (
-              <p className="text-red-400 text-xs text-center">{bypassError}</p>
-            )}
-          </div>
+          {/* Bypass — testing only. Shown on the local dev server; the backend
+              also refuses it unless ALLOW_PAYMENT_BYPASS=true. */}
+          {import.meta.env.DEV && (
+            <div className="border border-dashed border-gray-700 rounded-xl px-4 py-3 space-y-2">
+              <p className="text-xs text-gray-600 text-center font-medium tracking-wide uppercase">Testing only</p>
+              <button
+                onClick={handleBypassActivate}
+                disabled={bypassLoading || payLoading}
+                className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 py-2.5 rounded-xl text-sm font-medium transition-colors border border-gray-700"
+              >
+                {bypassLoading ? 'Saving…' : 'Bypass Payment & Activate'}
+              </button>
+              {bypassError && (
+                <p className="text-red-400 text-xs text-center">{bypassError}</p>
+              )}
+            </div>
+          )}
 
           <div className="text-center">
             <button

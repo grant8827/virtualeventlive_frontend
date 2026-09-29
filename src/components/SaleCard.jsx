@@ -14,8 +14,8 @@ export default function SaleCard({
   ctaHref,
   ctaText = 'Get Tickets',
 }) {
-  const bgFrom = card_bg_from || '#7c3aed'
-  const bgTo = card_bg_to || '#1e1b4b'
+  const bgFrom = card_bg_from || '#0067F9'
+  const bgTo = card_bg_to || '#011453'
   const bgStyle = card_bg_image
     ? { backgroundImage: `url(${card_bg_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundImage: `linear-gradient(to bottom right, ${bgFrom}, ${bgTo})` }

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { isDashboardUser } from '../dashboard/roles'
 
 export default function NavBar() {
   const { user, logout } = useAuth()
@@ -44,7 +45,12 @@ export default function NavBar() {
         <div className="flex items-center gap-4 text-sm shrink-0">
           {user ? (
             <>
-              {user.role === 'host' && (
+              {user.role === 'superuser' && (
+                <Link to="/superuser" className="text-gray-300 hover:text-white transition-colors">
+                  Superuser
+                </Link>
+              )}
+              {isDashboardUser(user) && (
                 <Link to="/dashboard" className="text-gray-300 hover:text-white transition-colors">
                   Dashboard
                 </Link>
@@ -58,17 +64,12 @@ export default function NavBar() {
               </button>
             </>
           ) : (
-            <>
-              <Link to="/login" className="text-gray-300 hover:text-white transition-colors">
-                Sign in
-              </Link>
-              <Link
-                to="/register"
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded-full text-white font-medium transition-colors"
-              >
-                Get Started
-              </Link>
-            </>
+            <Link
+              to="/login"
+              className="bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded-full text-white font-medium transition-colors"
+            >
+              Sign in
+            </Link>
           )}
         </div>
       </div>

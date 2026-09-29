@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { isDashboardUser } from '../dashboard/roles'
 import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
@@ -17,7 +18,7 @@ export default function Login() {
     setLoading(true)
     try {
       const data = await login(email, password)
-      navigate(data.role === 'host' ? '/dashboard' : '/')
+      navigate(data.role === 'superuser' ? '/superuser' : isDashboardUser(data) ? '/dashboard' : '/')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -53,7 +54,12 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">Password</label>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="block text-sm text-gray-400">Password</label>
+              <Link to="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300">
+                Forgot password?
+              </Link>
+            </div>
             <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -68,11 +74,8 @@ export default function Login() {
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="text-center text-sm text-gray-400">
-            No account?{' '}
-            <Link to="/register" className="text-purple-400 hover:text-purple-300 underline">
-              Create one
-            </Link>
+          <p className="text-center text-sm text-gray-500">
+            Host accounts are invite-only. Use the link in your invitation email to register.
           </p>
         </form>
       </div>

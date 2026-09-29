@@ -1,9 +1,11 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function ProtectedRoute({ children, role }) {
+// `role` is one role or a list of allowed roles.
+export default function ProtectedRoute({ children, role, redirectTo = '/' }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  if (role && user.role !== role) return <Navigate to="/" replace />
+  const allowed = Array.isArray(role) ? role : role ? [role] : null
+  if (allowed && !allowed.includes(user.role)) return <Navigate to={redirectTo} replace />
   return children
 }

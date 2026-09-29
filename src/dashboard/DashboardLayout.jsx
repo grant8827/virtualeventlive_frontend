@@ -1,15 +1,19 @@
 import { useEffect } from 'react'
 import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { api } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { DashboardProvider, useDashboard } from './DashboardContext'
+import { hasFullAccess } from './roles'
 
+// `staff: true` marks the pages staff members can see; the owner and admins
+// see every item.
 const NAV_ITEMS = [
   { to: 'setup', label: 'Book Event' },
   { to: 'events', label: 'My Events' },
-  { to: 'golive', label: '🔴 Go Live' },
-  { to: 'chat', label: '💬 Chat' },
-  { to: 'tickets', label: 'Tickets/Flyer' },
-  { to: 'scan', label: '📷 Scan Tickets' },
+  { to: 'golive', label: '🔴 Go Live', staff: true },
+  { to: 'chat', label: '💬 Chat', staff: true },
+  { to: 'tickets', label: 'Tickets/Flyer', staff: true },
+  { to: 'scan', label: '📷 Scan Tickets', staff: true },
   { to: 'payouts', label: 'Payouts' },
 ]
 
@@ -24,8 +28,18 @@ export default function DashboardLayout() {
 function DashboardShell() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const { activeEventCount } = useDashboard()
+  const fullAccess = hasFullAccess(user)
+  const navItems = fullAccess ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.staff)
+
+  // The cached role is from sign-in; pick up a staff/admin change made since.
+  // A suspended or deleted user gets a 401 here and is signed out.
+  useEffect(() => {
+    api.get('/auth/me').then((me) => {
+      if (me.role !== user?.role) updateUser({ role: me.role })
+    }).catch(() => {})
+  }, [])
 
   // Stripe/WiPay/PayPal checkout returns here as /dashboard?venue_paid=1|0.
   // Land the host on Go Live once the venue fee actually went through.
@@ -55,7 +69,7 @@ function DashboardShell() {
         </Link>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -84,6 +98,18 @@ function DashboardShell() {
           >
             Profile
           </NavLink>
+          {fullAccess && (
+            <NavLink
+              to="users"
+              className={({ isActive }) =>
+                `block text-sm font-medium py-2 px-3 rounded-lg transition-colors ${
+                  isActive ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`
+              }
+            >
+              Add User
+            </NavLink>
+          )}
           <button
             onClick={handleLogout}
             className="w-full text-left text-sm text-gray-400 hover:text-white hover:bg-gray-800 py-2 px-3 rounded-lg transition-colors"
@@ -105,13 +131,18 @@ function DashboardShell() {
             <NavLink to="profile" className="text-sm text-gray-400 hover:text-white transition-colors">
               Profile
             </NavLink>
+            {fullAccess && (
+              <NavLink to="users" className="text-sm text-gray-400 hover:text-white transition-colors">
+                Add User
+              </NavLink>
+            )}
             <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-white transition-colors">
               Logout
             </button>
           </div>
         </div>
         <nav className="flex gap-1 px-2 pb-2 overflow-x-auto">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

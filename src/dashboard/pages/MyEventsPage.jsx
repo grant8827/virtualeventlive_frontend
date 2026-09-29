@@ -139,6 +139,8 @@ export default function MyEventsPage() {
                       <span>·</span>
                       <span>{starts.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}{ends ? ` → ${ends.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
                       {hours && <><span>·</span><span>{hours}h booked</span></>}
+                      <span>·</span>
+                      <span>Assigned to {ev.assigned_to_name || 'no one'}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

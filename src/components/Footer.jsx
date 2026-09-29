@@ -47,11 +47,6 @@ export default function Footer() {
               <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Host</h4>
               <ul className="space-y-3 text-sm">
                 <li>
-                  <Link to="/register" className="text-gray-500 hover:text-white transition-colors">
-                    Create an Account
-                  </Link>
-                </li>
-                <li>
                   <Link to="/dashboard" className="text-gray-500 hover:text-white transition-colors">
                     Dashboard
                   </Link>

@@ -8,35 +8,40 @@
  *   --color-surface-card -> bg-surface-card
  * ------------------------------------------------------------------- */
 @theme {
-  /* Primary — Royal Purple: premium/modern, stands out, entertainment + tech */
-  --color-brand: #6C3BFF;
-  --color-brand-hover: #5A2EE6;
+  /* Colors sampled from the Virtual Event Plus logo: the "V" runs violet ->
+     blue, the "P" is green, the people icons are navy. */
+  --color-brand: #0067F9;          /* logo blue — primary actions */
+  --color-brand-hover: #003BD9;    /* logo royal blue */
+  --color-brand-violet: #650DEC;   /* bottom of the "V" */
+  --color-brand-green: #61CD0C;    /* the "P" */
+  --color-brand-green-dark: #047D22;
+  --color-brand-navy: #011453;     /* people icons / wordmark */
 
   /* Secondary — Electric Blue: links, notifications, active tabs, highlights */
-  --color-electric-blue: #00C2FF;
+  --color-electric-blue: #1F8BFF;
 
   /* Accent — Golden Yellow: Buy Ticket, Go Live, premium badges, important actions */
   --color-golden: #FFC107;
 
   /* Backgrounds */
-  --color-surface: #0F1117;       /* main background */
-  --color-surface-card: #1A1D29;  /* cards */
-  --color-surface-nav: #151823;   /* navigation */
-  --color-border: #2B3142;
+  --color-surface: #080D22;       /* main background — navy-tinted */
+  --color-surface-card: #0F1631;  /* cards */
+  --color-surface-nav: #0B1129;   /* navigation */
+  --color-border: #252E52;
 
   /* Text */
   --color-foreground: #FFFFFF;         /* primary */
-  --color-foreground-muted: #B8C0D0;   /* secondary */
-  --color-foreground-subtle: #8C96A8;  /* muted */
+  --color-foreground-muted: #B3BCD6;   /* secondary */
+  --color-foreground-subtle: #8590B0;  /* muted */
 
   /* Buttons / states */
-  --color-success: #00C853;
+  --color-success: #2BA01D;
   --color-danger: #FF3D57;
   --color-warning: #FFC107;
 
   /* Event status */
   --color-status-live: #FF1744;
-  --color-status-online: #00C853;
+  --color-status-online: #61CD0C;
   --color-status-upcoming: #FFC107;
   --color-status-replay: #2196F3;
 
@@ -48,39 +53,54 @@
    * here repoints every existing class across the app to the brand
    * palette without having to touch each of the ~26 files that use
    * them. Shade relationships (darker/lighter) are preserved; only the
-   * hue changes. Scales left alone (violet, teal, emerald, blue, etc.)
+   * hue changes. Scales left alone (teal, emerald, blue, etc.)
    * are used for one-off decorative/functional accents unrelated to
    * the brand system (e.g. the studio level-meter gradient) and are
    * intentionally untouched.
    * ------------------------------------------------------------- */
 
-  /* purple -> Royal Purple brand family. 600/700 are the exact spec
-     Primary Button background/hover values. */
-  --color-purple-50: #F4F2FF;
-  --color-purple-100: #E8E3FF;
-  --color-purple-200: #D3CBFF;
-  --color-purple-300: #B7A3FF;
-  --color-purple-400: #9A7AFF;
-  --color-purple-500: #8259FF;
-  --color-purple-600: #6C3BFF;
-  --color-purple-700: #5A2EE6;
-  --color-purple-800: #4823B8;
-  --color-purple-900: #35198A;
-  --color-purple-950: #200F52;
+  /* purple -> the logo's blue. The app uses purple-600/700 for primary
+     buttons and hover, purple-950 for tinted panels — they now read as the
+     logo's blue (#0067F9), royal blue (#003BD9) and navy (#011453). */
+  --color-purple-50: #EEF4FF;
+  --color-purple-100: #DCE7FF;
+  --color-purple-200: #BBD2FF;
+  --color-purple-300: #8DB5FF;
+  --color-purple-400: #5A93FC;
+  --color-purple-500: #2A77F8;
+  --color-purple-600: #0067F9;
+  --color-purple-700: #003BD9;
+  --color-purple-800: #0128B0;
+  --color-purple-900: #011C80;
+  --color-purple-950: #011453;
 
-  /* gray -> the app's Background/Text scale. 900 already lines up with
-     Cards, 700 with Borders, 500/400 with Muted/Secondary text. */
-  --color-gray-50: #F8F9FB;
-  --color-gray-100: #F2F4F8;
-  --color-gray-200: #E9ECF2;
-  --color-gray-300: #D6DBE5;
-  --color-gray-400: #B8C0D0;
-  --color-gray-500: #8C96A8;
-  --color-gray-600: #3C4356;
-  --color-gray-700: #2B3142;
-  --color-gray-800: #202436;
-  --color-gray-900: #1A1D29;
-  --color-gray-950: #0F1117;
+  /* violet -> the logo's violet (bottom of the "V"); used for decorative
+     accents and the violet end of brand gradients. */
+  --color-violet-50: #F3EEFF;
+  --color-violet-100: #E6DBFF;
+  --color-violet-200: #CDB8FF;
+  --color-violet-300: #AE8CFF;
+  --color-violet-400: #8D5CFA;
+  --color-violet-500: #7A33F2;
+  --color-violet-600: #650DEC;
+  --color-violet-700: #540BC4;
+  --color-violet-800: #43099C;
+  --color-violet-900: #33077A;
+  --color-violet-950: #1F0452;
+
+  /* gray -> the app's Background/Text scale, tinted toward the logo's
+     navy. 950 is the page, 900 cards, 700 borders, 500/400 muted text. */
+  --color-gray-50: #F8FAFD;
+  --color-gray-100: #F1F4FA;
+  --color-gray-200: #E6EAF4;
+  --color-gray-300: #D3D9EA;
+  --color-gray-400: #B3BCD6;
+  --color-gray-500: #8590B0;
+  --color-gray-600: #39436B;
+  --color-gray-700: #252E52;
+  --color-gray-800: #18203F;
+  --color-gray-900: #0F1631;
+  --color-gray-950: #080D22;
 
   /* red -> Danger */
   --color-red-50: #FFF1F3;
@@ -95,18 +115,18 @@
   --color-red-900: #5C0E1A;
   --color-red-950: #33080E;
 
-  /* green -> Success */
-  --color-green-50: #E6FBEF;
-  --color-green-100: #C2F5D6;
-  --color-green-200: #8FEAB3;
-  --color-green-300: #52DC8B;
-  --color-green-400: #1FCB6C;
-  --color-green-500: #00C853;
-  --color-green-600: #00A845;
-  --color-green-700: #018238;
-  --color-green-800: #08602C;
-  --color-green-900: #0A4322;
-  --color-green-950: #052414;
+  /* green -> the logo's green (the "P"), also used for Success. */
+  --color-green-50: #F0FBE6;
+  --color-green-100: #DDF6C6;
+  --color-green-200: #BDEB93;
+  --color-green-300: #97DD5A;
+  --color-green-400: #61CD0C;
+  --color-green-500: #4CB712;
+  --color-green-600: #2BA01D;
+  --color-green-700: #047D22;
+  --color-green-800: #06601D;
+  --color-green-900: #0A4A19;
+  --color-green-950: #052A0E;
 
   /* yellow & amber -> Golden Yellow / Warning */
   --color-yellow-50: #FFFBEB;
