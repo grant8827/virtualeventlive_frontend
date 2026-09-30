@@ -196,9 +196,9 @@ export default function MyEventsPage() {
                   ))}
                 </div>
 
-                {/* Venue fee row */}
+                {/* Event booking fee row */}
                 <div className="px-6 py-3 border-t border-gray-800 flex items-center justify-between text-xs text-gray-500">
-                  <span>Venue fee: <span className="text-gray-400">${ev.venue_fee.toFixed(2)}</span>{ev.venue_paid ? <span className="text-green-500 ml-2">✓ paid</span> : <span className="text-yellow-600 ml-2">unpaid</span>}</span>
+                  <span>Event booking fee: <span className="text-gray-400">${ev.venue_fee.toFixed(2)}</span>{ev.venue_paid ? <span className="text-green-500 ml-2">✓ paid</span> : <span className="text-yellow-600 ml-2">unpaid</span>}</span>
                   <span>Booked {new Date(ev.created_at).toLocaleDateString()}</span>
                 </div>
 

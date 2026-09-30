@@ -281,7 +281,7 @@ export default function BookEventPage() {
           {venueFeePreview && (
             <div className="bg-purple-950 border border-purple-800 rounded-xl px-4 py-3">
               <p className="text-sm text-purple-200">
-                Venue fee:{' '}
+                Event booking fee:{' '}
                 <strong className="text-white">${venueFeePreview.fee.toFixed(2)}</strong>
                 <span className="text-purple-400 ml-2 text-xs">
                   ({venueFeePreview.hours}h × {formatRate(hourlyRate)})
@@ -353,7 +353,7 @@ export default function BookEventPage() {
                   <span>{pendingEvent.hours}h × {formatRate(hourlyRate)}</span>
                 </div>
                 <div className="flex justify-between text-base font-bold">
-                  <span>Venue fee due</span>
+                  <span>Event booking fee due</span>
                   <span className="text-purple-400">${Number(pendingEvent.venue_fee).toFixed(2)}</span>
                 </div>
               </div>
@@ -384,7 +384,7 @@ export default function BookEventPage() {
             {payLoading ? (
               'Creating event & redirecting to checkout…'
             ) : (
-              <>Pay ${Number(pendingEvent.venue_fee).toFixed(2)} — Activate Event</>
+              <>Pay ${Number(pendingEvent.venue_fee).toFixed(2)} with Stripe — Activate Event</>
             )}
           </button>
 

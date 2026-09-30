@@ -66,7 +66,7 @@ export default function Footer() {
           {/* Bottom bar */}
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
             <p>© {year} Virtual Event Plus. All rights reserved.</p>
-            <p>{formatRate(hourlyRate)} venue · 10% platform commission per ticket</p>
+            <p>{formatRate(hourlyRate)} event booking fee · 10% platform commission per ticket</p>
           </div>
         </div>
       </footer>
