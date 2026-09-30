@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import FindMyTicketsModal from './FindMyTicketsModal'
+import { formatRate, useHourlyRate } from '../api/pricing'
 
 export default function Footer() {
   const [showTickets, setShowTickets] = useState(false)
+  const hourlyRate = useHourlyRate()
   const year = new Date().getFullYear()
 
   return (
@@ -64,7 +66,7 @@ export default function Footer() {
           {/* Bottom bar */}
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
             <p>© {year} Virtual Event Plus. All rights reserved.</p>
-            <p>$20/hr venue · 10% platform commission per ticket</p>
+            <p>{formatRate(hourlyRate)} venue · 10% platform commission per ticket</p>
           </div>
         </div>
       </footer>

@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useDashboard } from '../DashboardContext'
 import { startCheckout } from '../checkout'
+import { formatRate, useHourlyRate } from '../../api/pricing'
 
 export default function BookEventPage() {
   const navigate = useNavigate()
   const { fetchEvents } = useDashboard()
+  const hourlyRate = useHourlyRate()
 
   const [form, setForm] = useState({
     title: '',
@@ -57,7 +59,7 @@ export default function BookEventPage() {
       const diff = range.ends_at - range.starts_at
       if (diff >= 3600000) {
         const hours = Math.ceil(diff / 3600000)
-        setVenueFeePreview({ hours, fee: hours * 20 })
+        setVenueFeePreview({ hours, fee: hours * hourlyRate })
       } else {
         setVenueFeePreview(null)
       }
@@ -92,7 +94,7 @@ export default function BookEventPage() {
       starts_at: range.starts_at.toISOString(),
       ends_at: range.ends_at.toISOString(),
       hours,
-      venue_fee: hours * 20,
+      venue_fee: hours * hourlyRate,
     })
     setSetupStep('pay')
   }
@@ -282,7 +284,7 @@ export default function BookEventPage() {
                 Venue fee:{' '}
                 <strong className="text-white">${venueFeePreview.fee.toFixed(2)}</strong>
                 <span className="text-purple-400 ml-2 text-xs">
-                  ({venueFeePreview.hours}h × $20/hr)
+                  ({venueFeePreview.hours}h × {formatRate(hourlyRate)})
                 </span>
               </p>
               <p className="text-xs text-purple-500 mt-0.5">
@@ -348,7 +350,7 @@ export default function BookEventPage() {
               <div className="border-t border-gray-800 pt-3">
                 <div className="flex justify-between text-sm text-gray-500 mb-1">
                   <span>Duration</span>
-                  <span>{pendingEvent.hours}h × $20/hr</span>
+                  <span>{pendingEvent.hours}h × {formatRate(hourlyRate)}</span>
                 </div>
                 <div className="flex justify-between text-base font-bold">
                   <span>Venue fee due</span>

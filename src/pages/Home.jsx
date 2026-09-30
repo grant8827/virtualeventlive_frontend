@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { apiUrl } from '../api/url'
 import AdCard from '../components/AdCard'
+import { formatRate, useHourlyRate } from '../api/pricing'
 
 export default function Home() {
   const [ads, setAds] = useState([])
   const [showEnterModal, setShowEnterModal] = useState(false)
+  const hourlyRate = useHourlyRate()
 
   useEffect(() => {
     api.get('/advertisements')
@@ -128,7 +130,7 @@ export default function Home() {
               {
                 step: '01',
                 title: 'Book Your Slot',
-                body: 'Pick your date and time, choose your event type, and secure your virtual venue for just $20/hr.',
+                body: `Pick your date and time, choose your event type, and secure your virtual venue for just ${formatRate(hourlyRate)}.`,
                 color: 'from-violet-600 to-purple-600',
               },
               {

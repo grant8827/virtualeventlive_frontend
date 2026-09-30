@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import PasswordInput from '../../components/PasswordInput'
+import { formatRate, useHourlyRate } from '../../api/pricing'
 
 export default function PayoutsPage() {
   const navigate = useNavigate()
+  const hourlyRate = useHourlyRate()
 
   const [payoutStatus, setPayoutStatus] = useState(null)
   const [payoutStatusLoading, setPayoutStatusLoading] = useState(false)
@@ -281,7 +283,7 @@ export default function PayoutsPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-2 text-sm text-gray-300 mb-4">
         <div className="flex justify-between">
           <span className="text-gray-500">Venue fee</span>
-          <span>$20/hr (ceiling)</span>
+          <span>{formatRate(hourlyRate)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-500">Platform commission</span>
