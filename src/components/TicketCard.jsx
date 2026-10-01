@@ -145,16 +145,14 @@ export default function TicketCard({
         >
           {used && <UsedStamp channel={usedChannel} />}
 
-          {/* Eyebrow + host logo — the logo chip only renders when the host has uploaded one */}
+          {/* Eyebrow + host logo. The logo always sits at the ticket's far
+              right: here on virtual-only tickets, or on top of the QR slip
+              when that slip is the right-most part (Virtual + Location). */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <p className="text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase pt-1.5">
               {eventType || 'Virtual Event Plus'}
             </p>
-            {logo_image && (
-              <div className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
-                <img src={logo_image} alt="" crossOrigin="anonymous" className="w-full h-full object-contain" />
-              </div>
-            )}
+            {logo_image && !isHybrid && <TicketLogo src={logo_image} />}
           </div>
 
           {/* Event name */}
@@ -202,6 +200,11 @@ export default function TicketCard({
             className="relative w-36 shrink-0 bg-stone-100 rounded-r-2xl border-2 border-l-0 border-dashed flex flex-col items-center justify-center gap-2 p-3 text-center"
             style={{ borderColor: accent }}
           >
+            {logo_image && (
+              <div className="self-end">
+                <TicketLogo src={logo_image} />
+              </div>
+            )}
             <div className="w-full aspect-square bg-white rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden p-1.5">
               {qrDataUrl ? (
                 <img src={qrDataUrl} alt="Check-in QR code" className="w-full h-full object-contain" />
@@ -258,6 +261,16 @@ export default function TicketCard({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// The host's logo chip. crossOrigin lets the saved/printed ticket image
+// include it.
+function TicketLogo({ src }) {
+  return (
+    <div className="w-10 h-10 rounded-lg border border-gray-300 bg-white flex items-center justify-center overflow-hidden shrink-0">
+      <img src={src} alt="" crossOrigin="anonymous" className="w-full h-full object-contain" />
     </div>
   )
 }
