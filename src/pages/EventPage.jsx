@@ -33,7 +33,8 @@ export default function EventPage() {
     )
   }
 
-  const isLive = event.is_active && event.aws_playback_url
+  // The public API says whether a stream exists, never its playback URL.
+  const isLive = event.is_active && event.has_stream
   const price = event.ticket_price > 0
     ? `$${Number(event.ticket_price).toFixed(2)}`
     : 'Free'
