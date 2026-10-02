@@ -3,36 +3,39 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { apiUrl, mediaUrl } from '../api/url'
 import TicketCard from '../components/TicketCard'
 
+// Purchases land here as /ticket-success?claim=<token>. The claim is a
+// short-lived, single-purchase code: it shows exactly the ticket that was just
+// bought and nothing else, and no email address ever goes in the URL.
 export default function TicketSuccess() {
   const [params] = useSearchParams()
-  const urlEmail = params.get('email')
-  const email = urlEmail || sessionStorage.getItem('vel_ticket_email') || ''
+  const claim = params.get('claim') || ''
+  const paymentFailed = params.get('payment') === 'failed'
 
   const [ticket, setTicket] = useState(null)
-  const [polling, setPolling] = useState(!!email)
+  const [polling, setPolling] = useState(!!claim && !paymentFailed)
+  const [linkError, setLinkError] = useState('')
   const pollRef = useRef(null)
   const attemptsRef = useRef(0)
 
   useEffect(() => {
-    if (!email) return
-    sessionStorage.removeItem('vel_ticket_email')
+    if (!claim || paymentFailed) return
 
     async function poll() {
       attemptsRef.current += 1
+      // ~30s: Stripe/PayPal usually confirm within seconds.
       if (attemptsRef.current > 15) {
         clearInterval(pollRef.current)
         setPolling(false)
         return
       }
       try {
-        const res = await fetch(apiUrl(`/api/v1/tickets/lookup?email=${encodeURIComponent(email)}`))
-        const data = await res.json()
-        const tickets = data.tickets || []
-        if (tickets.length > 0) {
-          clearInterval(pollRef.current)
-          setPolling(false)
-          setTicket(tickets[0])
-        }
+        const res = await fetch(apiUrl(`/api/v1/tickets/claim/${encodeURIComponent(claim)}`))
+        if (res.status === 202) return // payment still processing; try again
+        const data = await res.json().catch(() => ({}))
+        clearInterval(pollRef.current)
+        setPolling(false)
+        if (res.ok && data.tickets?.length) setTicket(data.tickets[0])
+        else setLinkError(data.error || '')
       } catch {
         // transient network hiccup — the next poll tick retries
       }
@@ -41,19 +44,17 @@ export default function TicketSuccess() {
     poll() // immediate first attempt
     pollRef.current = setInterval(poll, 2000)
     return () => clearInterval(pollRef.current)
-  }, [email])
+  }, [claim, paymentFailed])
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 py-12">
       <div className="max-w-md w-full">
-        <div className="text-7xl mb-6">🎟️</div>
-        <h1 className="text-3xl font-bold mb-3">Payment Confirmed!</h1>
+        <div className="text-7xl mb-6">{paymentFailed ? '⚠️' : '🎟️'}</div>
+        <h1 className="text-3xl font-bold mb-3">{paymentFailed ? 'Payment not completed' : 'Payment Confirmed!'}</h1>
         <p className="text-gray-400 mb-2">
-          {email ? (
-            <>Your ticket is being sent to <strong className="text-white">{email}</strong>.</>
-          ) : (
-            'Your ticket is on its way to your email.'
-          )}
+          {paymentFailed
+            ? "Your payment didn't go through, so no ticket was issued. You can try again from the event page."
+            : 'Your ticket is on its way to your email.'}
         </p>
 
         {polling && !ticket && (
@@ -66,9 +67,9 @@ export default function TicketSuccess() {
           </div>
         )}
 
-        {!ticket && !polling && (
+        {!ticket && !polling && !paymentFailed && (
           <p className="text-gray-500 text-sm mt-4 mb-6">
-            Your ticket will be in your email — check your inbox.
+            {linkError || 'Your ticket will be in your email — check your inbox.'}
           </p>
         )}
       </div>

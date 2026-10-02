@@ -119,17 +119,14 @@ function BuyModal({ eventId, eventTitle, onClose }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Purchase failed')
 
-      // Both paths land on the same ticket-success page — real Stripe
-      // checkout redirects back to it, and the bypass/free path (no Stripe
-      // configured) jumps straight there since the ticket already exists.
-      // Either way the buyer gets the real TicketCard, not a bare code.
-      const normalizedEmail = email.trim().toLowerCase()
-      sessionStorage.setItem('vel_ticket_email', normalizedEmail)
+      // Both paths land on the ticket-success page with a one-time claim
+      // code (never the email): paid checkouts redirect back with it, and
+      // free tickets get it in this response since the ticket already exists.
       if (data.checkout_url) {
         window.location.href = data.checkout_url
-      } else if (data.access_token) {
+      } else if (data.claim) {
         onClose()
-        navigate(`/ticket-success?email=${encodeURIComponent(normalizedEmail)}`)
+        navigate(`/ticket-success?claim=${encodeURIComponent(data.claim)}`)
       }
     } catch (err) {
       setError(err.message)
