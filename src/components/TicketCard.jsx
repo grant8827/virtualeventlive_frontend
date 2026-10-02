@@ -145,14 +145,20 @@ export default function TicketCard({
         >
           {used && <UsedStamp channel={usedChannel} />}
 
-          {/* Eyebrow + host logo. The logo always sits at the ticket's far
-              right: here on virtual-only tickets, or on top of the QR slip
-              when that slip is the right-most part (Virtual + Location). */}
-          <div className="flex items-start justify-between gap-3 mb-4">
+          {/* Host logo, pinned in the ticket's top-right corner. On Virtual +
+              Location tickets the QR slip is the right-most part, so the
+              logo sits at the top of that slip instead. */}
+          {logo_image && !isHybrid && (
+            <div className="absolute top-2 right-2">
+              <TicketLogo src={logo_image} />
+            </div>
+          )}
+
+          {/* Eyebrow — padded on the right so it never runs under the logo */}
+          <div className={`mb-4 ${logo_image && !isHybrid ? 'pr-12' : ''}`}>
             <p className="text-[10px] font-bold tracking-[0.15em] text-gray-500 uppercase pt-1.5">
               {eventType || 'Virtual Event Plus'}
             </p>
-            {logo_image && !isHybrid && <TicketLogo src={logo_image} />}
           </div>
 
           {/* Event name */}
@@ -197,25 +203,29 @@ export default function TicketCard({
         {/* ── Right: QR slip — Virtual + Location only ── */}
         {isHybrid && (
           <div
-            className="relative w-36 shrink-0 bg-stone-100 rounded-r-2xl border-2 border-l-0 border-dashed flex flex-col items-center justify-center gap-2 p-3 text-center"
+            className="relative w-36 shrink-0 bg-stone-100 rounded-r-2xl border-2 border-l-0 border-dashed flex flex-col items-center gap-2 px-3 pt-2 pb-3 text-center"
             style={{ borderColor: accent }}
           >
+            {/* Logo tucked into the ticket's top-right corner */}
             {logo_image && (
-              <div className="self-end">
+              <div className="self-end -mr-1">
                 <TicketLogo src={logo_image} />
               </div>
             )}
-            <div className="w-full aspect-square bg-white rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden p-1.5">
-              {qrDataUrl ? (
-                <img src={qrDataUrl} alt="Check-in QR code" className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full bg-gray-100 animate-pulse rounded" />
-              )}
-            </div>
-            <p className="text-[9px] font-black tracking-wider text-gray-900">ADMIT ONE ONLY</p>
-            <div>
-              <p className="text-[8px] font-bold tracking-widest text-gray-500 uppercase">Ticket No.</p>
-              <p className="text-[11px] font-mono font-bold text-gray-900">{serialStr}</p>
+            {/* QR block stays centred in the space below the logo */}
+            <div className="flex-1 w-full flex flex-col items-center justify-center gap-2">
+              <div className="w-full aspect-square bg-white rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden p-1.5">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="Check-in QR code" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 animate-pulse rounded" />
+                )}
+              </div>
+              <p className="text-[9px] font-black tracking-wider text-gray-900">ADMIT ONE ONLY</p>
+              <div>
+                <p className="text-[8px] font-bold tracking-widest text-gray-500 uppercase">Ticket No.</p>
+                <p className="text-[11px] font-mono font-bold text-gray-900">{serialStr}</p>
+              </div>
             </div>
           </div>
         )}
