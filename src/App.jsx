@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import VerifyEmail from './pages/VerifyEmail'
 import Events from './pages/Events'
 import EventPage from './pages/EventPage'
 import Watch from './pages/Watch'
@@ -26,6 +27,7 @@ import SuperuserLayout from './superuser/SuperuserLayout'
 import OverviewPage from './superuser/pages/OverviewPage'
 import SuperuserUsersPage from './superuser/pages/UsersPage'
 import SuperuserEventsPage from './superuser/pages/EventsPage'
+import SecurityLogPage from './superuser/pages/SecurityLogPage'
 
 // Owner/admin-only dashboard pages; staff are bounced to Go Live.
 function FullAccess({ children }) {
@@ -46,6 +48,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/events" element={<Events />} />
         <Route path="/events/:id" element={<EventPage />} />
         <Route path="/events/:id/watch" element={<Watch />} />
@@ -87,6 +90,7 @@ export default function App() {
         <Route path="overview" element={<OverviewPage />} />
         <Route path="users" element={<SuperuserUsersPage />} />
         <Route path="events" element={<SuperuserEventsPage />} />
+        <Route path="security" element={<SecurityLogPage />} />
       </Route>
 
       {/* Unknown URLs would otherwise render a blank page */}

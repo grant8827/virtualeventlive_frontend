@@ -32,7 +32,7 @@ const inputClass =
   'w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors'
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth()
+  const { user } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -89,7 +89,7 @@ export default function ProfilePage() {
     setProfileSaved(false)
     setSavingProfile(true)
     try {
-      await api.put('/auth/profile', {
+      const res = await api.put('/auth/profile', {
         email: form.email,
         full_name: form.fullName,
         phone: form.phone,
@@ -101,10 +101,9 @@ export default function ProfilePage() {
         country: form.country,
         organization_name: form.organizationName,
       })
-      setProfileSaved(true)
-      // The sidebar and anything else reading `user.email` should reflect
-      // a changed email immediately, not just after the next login.
-      updateUser?.({ email: form.email })
+      // A new email only takes effect once confirmed from that inbox, so the
+      // sign-in email shown stays the current one until then.
+      setProfileSaved(res.message || 'Profile updated.')
     } catch (err) {
       setProfileError(err.message)
     } finally {
@@ -158,7 +157,7 @@ export default function ProfilePage() {
           )}
           {profileSaved && !profileError && (
             <div className="text-green-400 text-sm bg-green-950 border border-green-800 rounded-xl px-4 py-3">
-              Profile updated.
+              {profileSaved}
             </div>
           )}
 

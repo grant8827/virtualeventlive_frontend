@@ -292,6 +292,16 @@ export default function UsersPage() {
                           {member.email}
                           {member.stream_name && <span> · Stream: {member.stream_name}</span>}
                         </p>
+                        {member.email_verified === false && (
+                          <p className="text-xs text-yellow-500 mt-0.5">
+                            Email not confirmed yet — they can sign in after clicking the link we emailed.
+                          </p>
+                        )}
+                        {member.pending_email && (
+                          <p className="text-xs text-yellow-500 mt-0.5">
+                            Waiting for {member.pending_email} to be confirmed.
+                          </p>
+                        )}
                       </div>
 
                       <span
