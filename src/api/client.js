@@ -2,18 +2,22 @@ import { apiUrl } from './url'
 
 const BASE = '/api/v1'
 
-function getToken() {
-  return localStorage.getItem('token')
+// Sign-in is a server-side session carried by an HttpOnly cookie the browser
+// sends automatically (credentials: 'include'); no token is ever stored or
+// readable by page scripts. 'vel_user' only caches display info (name/role).
+function markSessionExpired(path) {
+  if (path === '/auth/login' || !localStorage.getItem('vel_user')) return
+  localStorage.removeItem('vel_user')
+  window.dispatchEvent(new Event('auth:expired'))
 }
 
 async function request(method, path, body, extraHeaders = {}) {
   const headers = { 'Content-Type': 'application/json', ...extraHeaders }
-  const token = getToken()
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const res = await fetch(apiUrl(BASE + path), {
     method,
     headers,
+    credentials: 'include',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
 
@@ -25,27 +29,25 @@ async function request(method, path, body, extraHeaders = {}) {
   }
 
   if (!res.ok) {
-    if (res.status === 401 && token) {
-      // Stale/expired session — clear it and let the app fall back to signed-out state
-      localStorage.removeItem('token')
-      localStorage.removeItem('vel_user')
-      window.dispatchEvent(new Event('auth:expired'))
-    }
-    throw new Error(data.error || `Request failed (${res.status})`)
+    if (res.status === 401) markSessionExpired(path)
+    const err = new Error(data.error || `Request failed (${res.status})`)
+    err.status = res.status
+    err.code = data.code
+    throw err
   }
   return data
 }
 
 async function upload(path, file) {
-  const headers = {}
-  const token = getToken()
-  if (token) headers.Authorization = `Bearer ${token}`
   const body = new FormData()
   body.append('image', file)
 
-  const res = await fetch(apiUrl(BASE + path), { method: 'POST', headers, body })
+  const res = await fetch(apiUrl(BASE + path), { method: 'POST', credentials: 'include', body })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`)
+  if (!res.ok) {
+    if (res.status === 401) markSessionExpired(path)
+    throw new Error(data.error || `Upload failed (${res.status})`)
+  }
   return data
 }
 

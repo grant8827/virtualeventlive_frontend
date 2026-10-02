@@ -30,8 +30,8 @@ export default function ChatModeration({ events }) {
     if (!selectedEventId) return
     setMessages([])
 
-    const token = localStorage.getItem('token') || ''
-    const url = apiWebSocketUrl(`/api/v1/events/${selectedEventId}/chat/ws?token=${encodeURIComponent(token)}`)
+    // The browser sends the session cookie with the handshake; no token in the URL.
+    const url = apiWebSocketUrl(`/api/v1/events/${selectedEventId}/chat/ws`)
     const ws = new WebSocket(url)
     wsRef.current = ws
 

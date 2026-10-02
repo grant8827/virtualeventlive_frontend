@@ -3,8 +3,12 @@ import { api } from '../api/client'
 
 const AuthContext = createContext(null)
 
+// The session itself lives in an HttpOnly cookie; this context only keeps
+// non-sensitive display info (id/email/role) and confirms it with the server.
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
+    // Tokens from before the cookie-session change are dropped on load.
+    localStorage.removeItem('token')
     try {
       const stored = localStorage.getItem('vel_user')
       return stored ? JSON.parse(stored) : null
@@ -24,11 +28,21 @@ export function AuthProvider({ children }) {
   }, [])
 
   function saveUser(data) {
-    localStorage.setItem('vel_user', JSON.stringify(data))
-    localStorage.setItem('token', data.token)
-    setUser(data)
+    const profile = { id: data.id, email: data.email, role: data.role }
+    localStorage.setItem('vel_user', JSON.stringify(profile))
+    setUser(profile)
     setSessionExpired(false)
   }
+
+  // Confirm the cached user with the server (the cookie may have expired or
+  // been revoked elsewhere); a 401 signs the app out via auth:expired.
+  useEffect(() => {
+    if (!localStorage.getItem('vel_user')) return
+    api
+      .get('/auth/me')
+      .then((me) => saveUser({ id: me.id, email: me.email, role: me.role }))
+      .catch(() => {})
+  }, [])
 
   async function login(email, password) {
     const data = await api.post('/auth/login', { email, password })
@@ -40,9 +54,11 @@ export function AuthProvider({ children }) {
     return api.post('/auth/register', payload)
   }
 
+  // Revokes the session on the server (the cookie alone can't be cleared by
+  // page scripts) and clears the cached profile.
   function logout() {
+    api.post('/auth/logout').catch(() => {})
     localStorage.removeItem('vel_user')
-    localStorage.removeItem('token')
     setUser(null)
     setSessionExpired(false)
   }
