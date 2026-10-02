@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: 'overview', label: '📊 Overview' },
   { to: 'users', label: '👥 Users' },
   { to: 'events', label: '🎟 Events' },
+  { to: 'payments', label: '💳 Payments' },
   { to: 'security', label: '🛡 Security log' },
 ]
 

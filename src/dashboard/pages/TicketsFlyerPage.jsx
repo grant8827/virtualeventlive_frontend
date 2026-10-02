@@ -14,6 +14,7 @@ export default function TicketsFlyerPage() {
   const [ticketForm, setTicketForm] = useState({
     ticket_name: 'General Admission',
     ticket_price: '',
+    max_tickets: '',
     ticket_type: 'Virtual Only',
     venue_address: '',
     bg_type: 'gradient',
@@ -32,8 +33,12 @@ export default function TicketsFlyerPage() {
   const [adMsg, setAdMsg] = useState(null)
   const [editingAdId, setEditingAdId] = useState(null)
 
+  // Platform commission, shown before anything is sold (basis points).
+  const [feeBps, setFeeBps] = useState(null)
+
   useEffect(() => {
     fetchAds()
+    api.get('/pricing').then((p) => setFeeBps(p.platform_fee_bps ?? null)).catch(() => {})
   }, [])
 
   async function fetchAds() {
@@ -55,6 +60,7 @@ export default function TicketsFlyerPage() {
     setTicketForm({
       ticket_name: ev.title,
       ticket_price: ev.ticket_price > 0 ? ev.ticket_price.toString() : '',
+      max_tickets: ev.max_tickets > 0 ? ev.max_tickets.toString() : '',
       ticket_type: ev.ticket_type || 'Virtual Only',
       venue_address: ev.venue_address || '',
       bg_type: ev.card_bg_image ? 'image' : 'gradient',
@@ -119,6 +125,7 @@ export default function TicketsFlyerPage() {
       await api.patch(`/events/${selectedEventId}/ticket`, {
         ticket_name: ev?.title || 'General Admission',
         ticket_price: parseFloat(ticketForm.ticket_price) || 0,
+        max_tickets: ticketForm.max_tickets === '' ? null : parseInt(ticketForm.max_tickets, 10),
         ticket_type: ticketForm.ticket_type || 'Virtual Only',
         venue_address: ticketForm.venue_address,
         card_bg_from: ticketForm.card_bg_from,
@@ -312,6 +319,30 @@ export default function TicketsFlyerPage() {
                       className="w-full bg-gray-900 border border-gray-700 rounded-xl pl-8 pr-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
                     />
                   </div>
+                  {feeBps !== null && parseFloat(ticketForm.ticket_price) > 0 && (() => {
+                    const cents = Math.round(parseFloat(ticketForm.ticket_price) * 100)
+                    const fee = Math.floor((cents * feeBps * 2 + 10000) / 20000)
+                    return (
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        Platform fee {feeBps / 100}% (${(fee / 100).toFixed(2)}) — you receive ${((cents - fee) / 100).toFixed(2)} per ticket.
+                      </p>
+                    )
+                  })()}
+                </div>
+
+                {/* Capacity */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5">Capacity (optional)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={ticketForm.max_tickets}
+                    onChange={(e) => setTicketForm((f) => ({ ...f, max_tickets: e.target.value }))}
+                    placeholder="No limit"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 mt-1.5">Sales stop when this many tickets are sold. Leave empty for no limit.</p>
                 </div>
 
                 {/* Ticket type */}

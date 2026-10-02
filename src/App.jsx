@@ -28,6 +28,7 @@ import OverviewPage from './superuser/pages/OverviewPage'
 import SuperuserUsersPage from './superuser/pages/UsersPage'
 import SuperuserEventsPage from './superuser/pages/EventsPage'
 import SecurityLogPage from './superuser/pages/SecurityLogPage'
+import PaymentsPage from './superuser/pages/PaymentsPage'
 
 // Owner/admin-only dashboard pages; staff are bounced to Go Live.
 function FullAccess({ children }) {
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="overview" element={<OverviewPage />} />
         <Route path="users" element={<SuperuserUsersPage />} />
         <Route path="events" element={<SuperuserEventsPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
         <Route path="security" element={<SecurityLogPage />} />
       </Route>
 

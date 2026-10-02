@@ -9,16 +9,19 @@ import TicketCard from '../components/TicketCard'
 export default function TicketSuccess() {
   const [params] = useSearchParams()
   const claim = params.get('claim') || ''
-  const paymentFailed = params.get('payment') === 'failed'
+  const returnedFailed = params.get('payment') === 'failed'
+  // The checkout expired or its payment failed (reported by the claim).
+  const [checkoutEnded, setCheckoutEnded] = useState(false)
+  const paymentFailed = returnedFailed || checkoutEnded
 
   const [ticket, setTicket] = useState(null)
-  const [polling, setPolling] = useState(!!claim && !paymentFailed)
+  const [polling, setPolling] = useState(!!claim && !returnedFailed)
   const [linkError, setLinkError] = useState('')
   const pollRef = useRef(null)
   const attemptsRef = useRef(0)
 
   useEffect(() => {
-    if (!claim || paymentFailed) return
+    if (!claim || returnedFailed) return
 
     async function poll() {
       attemptsRef.current += 1
@@ -35,6 +38,7 @@ export default function TicketSuccess() {
         clearInterval(pollRef.current)
         setPolling(false)
         if (res.ok && data.tickets?.length) setTicket(data.tickets[0])
+        else if (data.status === 'failed' || data.status === 'expired') setCheckoutEnded(true)
         else setLinkError(data.error || '')
       } catch {
         // transient network hiccup — the next poll tick retries
@@ -44,7 +48,7 @@ export default function TicketSuccess() {
     poll() // immediate first attempt
     pollRef.current = setInterval(poll, 2000)
     return () => clearInterval(pollRef.current)
-  }, [claim, paymentFailed])
+  }, [claim, returnedFailed])
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 py-12">

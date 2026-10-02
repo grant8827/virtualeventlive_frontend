@@ -13,9 +13,10 @@ const TYPES = [
   'superuser_user_updated', 'superuser_user_rejected',
   'superuser_event_approved', 'superuser_event_updated', 'superuser_event_cancelled',
   'invitation_issued', 'invitation_revoked',
+  'superuser_refund_issued', 'superuser_reconciliation_run',
 ]
 
-const ALERT = new Set(['login_failed', 'login_locked', 'superuser_user_updated', 'superuser_event_cancelled'])
+const ALERT = new Set(['login_failed', 'login_locked', 'superuser_user_updated', 'superuser_event_cancelled', 'superuser_refund_issued'])
 
 export default function SecurityLogPage() {
   const [type, setType] = useState('')

@@ -4,6 +4,15 @@ import { api } from '../../api/client'
 import { useDashboard } from '../DashboardContext'
 import { startCheckout } from '../checkout'
 
+// Sales figures come from the server's order books, in cents: what buyers
+// paid, the platform's commission and the host's share, both net of refunds.
+function eventMoney(ev) {
+  const gross = (ev.gross_cents || 0) / 100
+  const platformFee = (ev.platform_fee_cents || 0) / 100
+  const net = (ev.host_net_cents || 0) / 100 - (ev.venue_paid ? ev.venue_fee : 0)
+  return { gross, platformFee, net }
+}
+
 export default function MyEventsPage() {
   const navigate = useNavigate()
   const { events, eventsLoading, currentEvents, fetchEvents } = useDashboard()
@@ -102,9 +111,7 @@ export default function MyEventsPage() {
           )}
 
           {currentEvents.map((ev) => {
-            const gross = ev.ticket_count * ev.ticket_price
-            const platformFee = gross * 0.1
-            const net = gross * 0.9 - (ev.venue_paid ? ev.venue_fee : 0)
+            const { gross, platformFee, net } = eventMoney(ev)
             const starts = new Date(ev.starts_at)
             const ends = ev.ends_at ? new Date(ev.ends_at) : null
             const hours = ends ? Math.ceil((ends - starts) / 3600000) : null
@@ -232,9 +239,7 @@ export default function MyEventsPage() {
             ) : (
               <div className="space-y-5">
                 {archivedEvents.map((ev) => {
-                  const gross = ev.ticket_count * ev.ticket_price
-                  const platformFee = gross * 0.1
-                  const net = gross * 0.9 - (ev.venue_paid ? ev.venue_fee : 0)
+                  const { gross, platformFee, net } = eventMoney(ev)
                   const starts = new Date(ev.starts_at)
                   const ends = ev.ends_at ? new Date(ev.ends_at) : null
                   return (

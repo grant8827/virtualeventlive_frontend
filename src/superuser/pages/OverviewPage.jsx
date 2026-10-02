@@ -59,8 +59,14 @@ export default function OverviewPage() {
           <StatTile label="Platform earnings" value={money(revenue.platform_fees + revenue.venue_fees)} sub={`${money(revenue.platform_fees)} commission · ${money(revenue.venue_fees)} venue fees`} />
           <StatTile label="Ticket sales" value={money(revenue.gross_sales)} sub="Gross, all hosts" />
           <StatTile label="Paid to hosts" value={money(revenue.host_payouts)} sub={`${money(revenue.pending_payouts)} pending`} />
-          <StatTile label="Processing fees" value={money(revenue.processing_fees)} sub="Stripe / PayPal" />
+          <StatTile label="Processing fees" value={money(revenue.processing_fees)} sub="Stripe, once reconciled" />
+          <StatTile label="Refunds" value={money(revenue.refunds)} sub={`${money(revenue.dispute_losses)} lost to disputes`} />
         </div>
+        {revenue.needs_attention_orders > 0 && (
+          <Link to="../payments" className="block mt-3 text-sm text-yellow-400 bg-yellow-950/40 border border-yellow-900 rounded-xl px-4 py-3 hover:bg-yellow-950/70 transition-colors">
+            {revenue.needs_attention_orders} paid order{revenue.needs_attention_orders !== 1 ? 's' : ''} need attention (usually a refund) — open Payments →
+          </Link>
+        )}
       </Section>
 
       <Section title="Platform">
